@@ -224,6 +224,7 @@ class Global_hotkeys:
 
 
 class snipping_tool():
+
     def __init__(self):
         self.tray = None
         
@@ -237,6 +238,8 @@ class snipping_tool():
         #self.end_monitorid = None   # Monitor id of the monitor you ended on
         self.zoom_image = None      # Image displayed when you zoom in 
         self.img = None             # Temporary image that is shown when you zoom in
+        self.old_x = None
+        self.old_y = None
 
         self.zoomcycle = 0          # How far in you are zoomed       
         self.scale_percent = 0.35   # The size of the zoom box based on the width/height of the clip
@@ -244,7 +247,7 @@ class snipping_tool():
         self.cursor_lines = 1       # Is there 2 lines that follow you mouse in clipping mode 
         self.default_alpha = 0.3
         self.border_color = "#ff08ff"
-        self.border_thiccness = 2
+        self.border_thiccness = 1
         self.auto_copy_image = 0
         self.auto_hide_clip = 0
         self.hwnd = root.winfo_id()
@@ -596,10 +599,11 @@ class snipping_tool():
                 if str(widget.title()).find("clip_window") != -1:
                     widget.attributes('-alpha', .3)  
         self.record_on = False
-        for i in self.threads:
+        for i in self.threads.copy():
             i.join()
             self.threads.remove(i)
         gc.collect()
+
 
         
     #***************** Save gif *************. 
@@ -609,7 +613,7 @@ class snipping_tool():
                 if str(widget.title()).find("clip_window") != -1: # Set all clip windows back to regular transparency 
                     widget.attributes('-alpha', .3)  
         self.record_on = False
-        for i in self.threads:
+        for i in self.threads.copy():
             i.join()                # Clean up threads
             self.threads.remove(i) 
         savename = datetime.datetime.now()
@@ -721,20 +725,46 @@ class snipping_tool():
         self.img = None
         print(f"clip {win.title()} has been destroyed")
         win.destroy()
-        for i in self.threads:
+        for i in self.threads.copy():
             if not i.is_alive():
                 i.join()
+                self.threads.remove(i)
         gc.collect()
 
-    #***************** Put the border geometry for the clip back to normal *************. 
-    def reset_border(self, win, w, h, x, y):
-        win.geometry("{}x{}+{}+{}".format(w, h, x, y))
+    ##***************** Put the border geometry for the clip back to normal *************. 
+    #def reset_border(self, win, w, h, x, y):
+    #    win.geometry("{}x{}+{}+{}".format(w, h, x, y))
 
+    @cooldown(0.5)
+    def crop_out_border(self, remove_title_bar = False):
+        try:
+            image = ImageGrab.grabclipboard()
+            print(image)
+            if remove_title_bar:
+                startingpoint = (1 + (self.border_thiccness),31 + (self.border_thiccness))
+                endpoint = (image.width - self.border_thiccness - 1, image.height - self.border_thiccness - 1) # -1 because there is a 1 pixel thick black outline when there is a title bar
+            else:
+                startingpoint = (0 + (self.border_thiccness),0 + (self.border_thiccness))
+                endpoint = (image.width - self.border_thiccness, image.height - self.border_thiccness)
+            image = image.crop((startingpoint[0], startingpoint[1], endpoint[0], endpoint[1]))
+            output = io.BytesIO()
+            image.convert("RGB").save(output, "BMP")
+            data = output.getvalue()[14:]
+            output.close()
+
+            win32clipboard.OpenClipboard()
+            win32clipboard.EmptyClipboard()
+            win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+            win32clipboard.CloseClipboard()
+            del image
+            gc.collect()
+        except:
+            messagebox.showerror(title="", message="There was an error cropping the image, please wait at least 1 second before trying again", parent=root)
 
     #***************** Remove the border and send Alt+Print screen to copy the window *************. 
-    @cooldown(0.5)
+    @cooldown(0.7)
     def copy(self, event, win, force_win32 = False):     # On Ctrl+C remove the border using geometry and send Alt+PrntScreen to copy clip
-        if self.win32clipboard or force_win32:
+        if (self.win32clipboard or force_win32) and win["cursor"] != "pencil":
             output = io.BytesIO()
             self.save_img_data[win.title()].convert("RGB").save(output, "BMP")
             data = output.getvalue()[14:]
@@ -745,15 +775,19 @@ class snipping_tool():
             win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
             win32clipboard.CloseClipboard()
         else:
-            w, h, x, y = win.winfo_width(), win.winfo_height(), win.winfo_x(), win.winfo_y()
-            if not win.overrideredirect(): 
-                win.overrideredirect(1)
-                win.attributes('-topmost', 'true')
-            win.geometry("{}x{}+{}+{}".format(w - self.border_thiccness, h - self.border_thiccness, x, y))
-            win.update()
-            time.sleep(0.095)            #small delay to allow it time to update
+            #w, h, x, y = win.winfo_width(), win.winfo_height(), win.winfo_x(), win.winfo_y()
+            #if not win.overrideredirect(): 
+            #    win.overrideredirect(1)
+            #    win.attributes('-topmost', 'true')
+            #win.geometry("{}x{}+{}+{}".format(w - self.border_thiccness, h - self.border_thiccness, x, y))
+            #win.update()
+            #time.sleep(0.095)            #small delay to allow it time to update
             kb.send("Alt+print screen") # Only copies the image at the end of function so below must use something non blocking, but still need a small delay
-            timer = threading.Timer(1.5, self.reset_border, args = (win, w, h, x, y))
+            #self.crop_out_border()
+            if win.overrideredirect():
+                timer = threading.Timer(0.01, self.crop_out_border)
+            else:
+                timer = threading.Timer(0.01, lambda x = True : self.crop_out_border(x))
             self.threads.append(timer)
             timer.start()
 
@@ -805,16 +839,53 @@ class snipping_tool():
             messagebox.showerror(title="", message="error with ocr:\n {}".format(e), parent=root)
 
 
+    def paint(self, event, win):
+        line_width = 5
+        paint_color = self.border_color
+        if self.old_x and self.old_y:
+            win.create_line(self.old_x, self.old_y, event.x, event.y,
+                               width=line_width, fill=paint_color,
+                               capstyle=ROUND, smooth=TRUE, splinesteps=36)
+        self.old_x = event.x
+        self.old_y = event.y
+
+    def reset(self, event):
+        self.old_x, self.old_y = None, None
+
+
+    def enable_drawing(self,win):
+        children = win.winfo_children() # [1] == the canvas with the image
+        print(win.attributes())
+        if win["cursor"] == "arrow": # not in drawing mode
+            win.attributes('-topmost', 'false')
+            win.overrideredirect(0)
+            children[1].unbind("<B1-Motion>")
+            children[1].bind('<B1-Motion>', lambda event, win = children[1] : self.paint(event, win))
+            children[1].bind('<ButtonRelease-1>', self.reset)
+            win.config(cursor = "pencil")
+            
+        else:                       # in drawing mode
+            win.attributes('-topmost', 'true')
+            win.overrideredirect(1)
+            children[1].unbind("<B1-Motion>")
+            children[1].bind('<ButtonRelease-1>')
+            children[1].bind("<B1-Motion>", lambda event, win = win : self.Dragging(event, win))
+            win.config(cursor = "arrow")
+        
+            
+            
+
+
     #***************** Bring up the right click menu *************. 
     def show_popup_menu(self, event, menu):
         hotkey_visual = [self.hotkey_visual_in_settings["current_hotkey_1"], self.hotkey_visual_in_settings["current_hotkey_2"]]
         hotkey_visual = [i.replace("<", "").replace(">","").replace("cmd","win").title() for i in hotkey_visual]
         try: 
-            menu.entryconfigure(6, accelerator = self.snapshot)
-            menu.entryconfigure(7, accelerator = self.delayed_clip)
-            menu.entryconfigure(8, accelerator = self.multi_clip)
-            menu.entryconfigure(10, accelerator = hotkey_visual[0])
-            menu.entryconfigure(11, accelerator = hotkey_visual[1])
+            menu.entryconfigure(7, accelerator = self.snapshot)
+            menu.entryconfigure(8, accelerator = self.delayed_clip)
+            menu.entryconfigure(9, accelerator = self.multi_clip)
+            menu.entryconfigure(11, accelerator = hotkey_visual[0])
+            menu.entryconfigure(12, accelerator = hotkey_visual[1])
             menu.tk_popup(event.x_root, event.y_root) 
             
             #print(menu.entrycget())
@@ -858,7 +929,7 @@ class snipping_tool():
             self.save_img_data[str(date_time)] = imgobj
             del imgfromfile
         if img != None:                            # Create window to display clip 
-            self.display_screen = Toplevel(root)#, .config(cursor="spraycan"
+            self.display_screen = Toplevel(root, cursor = "arrow")#, .config(cursor="spraycan"
             #self.display_screen.iconbitmap(bitmap = "Pixture-Stationary-Clip.ico")
             self.display_screen.title("{}".format(date_time))
             self.display_screen.minsize(int(width), int(height)) 
@@ -873,6 +944,7 @@ class snipping_tool():
             right_click_menu.add_command(label ="OCR", accelerator="Ctrl+T", command = lambda event = None, win= self.display_screen : self.tesseract_clip(event, win))
             right_click_menu.add_command(label ="AlwaysOnTop", accelerator="Tab", command = lambda event = None, win= self.display_screen : self.top_most(event, win))
             right_click_menu.add_command(label ="Destroy", accelerator="Esc", command = lambda event = None, win = self.display_screen : self.close(event, win))
+            right_click_menu.add_command(label ="Draw", command = lambda win = self.display_screen : self.enable_drawing( win))
             right_click_menu.add_separator() 
             right_click_menu.add_command(label ="SnapshotMode", accelerator= self.snapshot, command = lambda :  self.toggle_snapshot_mode())
             right_click_menu.add_command(label ="DelayMode", accelerator= self.delayed_clip , command = lambda :  self.toggle_delay_mode())
@@ -886,9 +958,10 @@ class snipping_tool():
             right_click_menu.add_separator()
             right_click_menu.add_command(label ="Settings", command = lambda :  self.settings_window())
 
-            self.label1 = Label(self.display_screen, image=img, bg = self.border_color, borderwidth = self.border_thiccness) # border color
-            self.label1.image = img # Keep img in memory # VERY IMPORTANT 
-            self.label1.pack()
+            self.label1 = Canvas(self.display_screen,  bg = self.border_color, borderwidth = self.border_thiccness, highlightthickness=0)#, width = width, height = height) # border color
+            self.label1.pack(expand = True, fill = BOTH)
+            self.label1.create_image(0, 0, image = img, anchor = NW)#image = img # Keep img in memory # VERY IMPORTANT 
+            self.label1.image = img
 
             self.label2 = Label(self.display_screen) # Label that holds temp image on zoom in
 
@@ -1278,7 +1351,7 @@ class snipping_tool():
             self.snapshot = 0
             self.delayed_clip = 0
             self.border_color = "#ff08ff"
-            self.border_thiccness = 2
+            self.border_thiccness = 1
             #Global_hotkeys.remove_hotkey(self.clip_app.hwnd, self.clip_app.clip_hotkey[3], self.clip_app.clip_hotkey[0])
             #Global_hotkeys.remove_hotkey(self.clip_app.hwnd, self.clip_app.gif_hotkey[3], self.clip_app.gif_hotkey[0])
             if self.hotkey_visual_in_settings["current_hotkey_1"] != '<cmd>+z':
