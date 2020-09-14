@@ -238,8 +238,7 @@ class snipping_tool():
         self.gif = []               # Keep all the pictures taken in gif mode
         self.threads = []           # Keep track of used threads to join back later
         self.gif_canvas = []     # Keep track of gif screens to disable binds
-        self.temp_hotkeys_for_ahk = []
-        self.scripts = { "current_hotkey_1" : ";Clipping Hotkey\n;AHK code to execute upon hotkey\nMenu, tray, Tip, Clipping Hotkey" + "\nProcess, Exist, %s\nif (ErrorLevel = 0){\nmsgbox, %s is not open\n}" % (str(*sys.argv).split('\\')[-1], str(*sys.argv).split('\\')[-1]),"current_hotkey_2" : ";Gif Hotkey\n;AHK code to execute upon hotkey\nMenu, tray, Tip, Gif Hotkey" + "\nProcess, Exist, %s\nif (ErrorLevel = 0){\nmsgbox, %s is not open\n}" % (str(*sys.argv).split('\\')[-1], str(*sys.argv).split('\\')[-1])}
+
         self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                           "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
         print("snipping tool started")
