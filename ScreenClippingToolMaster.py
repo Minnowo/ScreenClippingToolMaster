@@ -11,8 +11,6 @@ from screeninfo import get_monitors
 from ctypes import windll, Structure, c_ulong, byref
 from desktopmagic.screengrab_win32 import getDisplayRects, saveScreenToBmp, saveRectToBmp, getScreenAsImage, getRectAsImage, getDisplaysAsImages
 from pynput import keyboard
-from ahk import Hotkey
-from ahk import AHK
 
 
 
@@ -157,29 +155,6 @@ class cooldown:
     def remaining(self, value):
         self.calltime = time.time() - self.timeout + value
 
-
-class ahk_blocking_hotkeys():
-    ahk = AHK(executable_path= f'{os.getcwd()}\\AutoHotkeyU32.exe')
-    hotkeys = {}
-
-
-    @classmethod
-    def create_blocking_hotkeys(cls, hotkey, script, hotkey_name, number = 1):
-        for i in range(number):
-            hotkey1 = Hotkey(cls.ahk, hotkey[i], script[i]) # Create Hotkey
-            cls.hotkeys[hotkey_name[i]] = hotkey1
-            hotkey1.start()                            #  Start listening for hotkey, )
-
-    @classmethod
-    def create_blocking_hotkey(cls, hotkey, script, hotkey_name):
-        hotkey1 = Hotkey(cls.ahk, hotkey, script) # Create Hotkey
-        cls.hotkeys[hotkey_name] = hotkey1
-        hotkey1.start()                            #  Start listening for hotkey, )
-
-    @classmethod
-    def destroy_blocking_hotkey(cls, hotkey_name):
-        cls.hotkeys[hotkey_name].stop()
-        del cls.hotkeys[hotkey_name]
     
 
 class Global_hotkeys:
@@ -256,7 +231,6 @@ class snipping_tool():
         self.multi_clip = 0     # Lets you clip the same window until you cancel the clip windows 
         self.record_on = False      # Variable that tells the gif mode when to stop taking pictures 
         self.win32clipboard = 1     # Copy using win32 or prnt screen
-        self.blocking_hotkeys = 0   # create ahk hotkey that does nothing accept block the keypress of the hotkey
         
         
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
@@ -1095,51 +1069,6 @@ class snipping_tool():
         print(f"auto hide set : {self.auto_hide_clip}")
 
 
-    #***************** Remove hotkeys and create new ones using AHK allowing the user to run AHK code upon hotkeys *************. 
-    def toggle_blocking_hotkeys(self):
-        self.blocking_hotkeys = 1 - self.blocking_hotkeys
-        print(f"AHK hotkeys set: {self.blocking_hotkeys}")
-        if self.blocking_hotkeys:
-            a = messagebox.askquestion(title = "", message = "AHK Hotkeys has been set to 1, would you like to launch AHK scripts?\nThey can be killed directly in the system tray or by setting the button to 0", parent=root)
-            if a == "yes":
-                try: 
-                    for i in list(ahk_blocking_hotkeys.hotkeys.keys()).copy(): ahk_blocking_hotkeys.destroy_blocking_hotkey(i)
-                except Exception as e:print(e)
-                Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0])
-                Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0])            
-
-                to_ahk = {"<ctrl>" : "^", "<shift>" : "+", "<cmd>" : "#", "<alt>" : "!"}
-                hotkey = (self.hotkey_visual_in_settings["current_hotkey_1"], self.hotkey_visual_in_settings["current_hotkey_2"])
-
-                self.temp_hotkeys_for_ahk.append(keyboard.GlobalHotKeys({ hotkey[0] : self.on_activate_i}))
-                self.temp_hotkeys_for_ahk.append(keyboard.GlobalHotKeys({ hotkey[1] : self.on_activate_gif}))
-                for i in self.temp_hotkeys_for_ahk: i.start()
-
-                keys = (hotkey[0].split("+")[-1], hotkey[1].split("+")[-1])
-                modifyers = ([ to_ahk[i] for i in hotkey[0].split("+")[:-1]][0], [ to_ahk[i] for i in hotkey[1].split("+")[:-1]][0])
-                scipt = (self.scripts["current_hotkey_1"], self.scripts["current_hotkey_2"])
-                self.block_hotkeys([modifyers[0] + keys[0], modifyers[1] + keys[1]], [scipt[0], scipt[1]], ["h1", "h2"], 2);
-        else:
-            try: 
-                for i in list(ahk_blocking_hotkeys.hotkeys.keys()).copy(): ahk_blocking_hotkeys.destroy_blocking_hotkey(i)
-            except Exception as e:print(e)
-            for i in self.temp_hotkeys_for_ahk.copy():
-                try:
-                    keyboard.GlobalHotKeys.stop(i)
-                except:pass
-                del self.temp_hotkeys_for_ahk[self.temp_hotkeys_for_ahk.index(i)]
-            modifier1 = self.hotkey_visual_in_settings["current_hotkey_1"].split("+")
-            modifier1.pop(-1)
-            modifier2 = self.hotkey_visual_in_settings["current_hotkey_2"].split("+")
-            modifier2.pop(-1)
-
-            self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, modifier1, self.hotkey_visual_in_settings["hotkey_1_key"], self.on_activate_i) 
-
-            self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, modifier2, self.hotkey_visual_in_settings["hotkey_2_key"], self.on_activate_gif)
-
-
-
-
     #***************** Destroy all toplevel widgets or only destroy clpping windows *************.###
     def destroy_all(self, destroy = 0):
         del self.gif
@@ -1368,57 +1297,6 @@ class snipping_tool():
             self.settings_window()
 
 
-        def ahk_win(parent, *args):
-            for widget in parent.winfo_children():
-                if isinstance(widget, Toplevel):
-                    if widget.title().find("AHK Options") != -1:widget.destroy()
-
-            def blocking_toggle(*args):
-                self.toggle_blocking_hotkeys()
-                blocking_hotkeys_button.config(text = f"AHK Hotkeys {self.blocking_hotkeys}")
-
-            def set_script1(*args):
-                script = script_input_1.get("1.0", END)
-                self.scripts["current_hotkey_1"] = script
-                print(self.scripts)
-
-
-            def set_script2(*args):
-                script = script_input_2.get("1.0", END)
-                self.scripts["current_hotkey_2"] = script
-                print(self.scripts)
-
-            ahk_window = Toplevel(parent)
-            ahk_window.title("AHK Options")
-            ahk_window.attributes("-topmost", True)
-            ahk_window.lift()
-            ahk_window.resizable(0,0)
-
-            blocking_hotkeys_button = Button(ahk_window, text = f"AHK Hotkeys {self.blocking_hotkeys}", command = blocking_toggle)
-            blocking_hotkeys_button.grid(column = 0, row = 0)
-
-            script_input_1 = Text(ahk_window, width = 55, height = 15)
-            script_input_1.insert(END, self.scripts["current_hotkey_1"])
-            script_input_1.grid(column = 0, row = 2)
-
-            script_input_2 = Text(ahk_window, width = 55, height = 15)
-            script_input_2.insert(END, self.scripts["current_hotkey_2"])
-            script_input_2.grid(column = 1, row = 2)
-
-            script_button = Button(ahk_window, text = "Submit", command = set_script1)
-            script_button.grid(column = 0, row = 1)
-
-            script_button1 = Button(ahk_window, text = "Submit", command = set_script2)
-            script_button1.grid(column = 1, row = 1)
-
-
-
-            hotkey_label_info = Label(ahk_window, text = "Known issues (Hover)")# \n
-            hotkey_label_info.grid(column = 1, row = 0)
-            #"Known Problems:\n-If the only modifier key is the windows key, hotkey doesn't work \n-Each hotkey is run in its own AHK script\n-Tray icon persists even if the AHK script is killed via main (hover mouse to remove)"
-            hotkey_label_info_tooltip = CreateToolTip(hotkey_label_info, "Known Problems:\n-If the only modifier key is the windows key, hotkey doesn't work \n-Each hotkey is run in its own AHK script\n-Tray icon persists even if the AHK script is killed via main \n\nNotes: \n-Suspending, killing, or pausing the AHK scripts doesn't affect main hotkeys")
-
-
         def change_border(*args):
             a = askcolor(color = self.border_color)
             if a[1]:
@@ -1474,10 +1352,6 @@ class snipping_tool():
 
         auto_copy_clip_button_tooltip = CreateToolTip(auto_copy_clip_button, "Automatically copies the clip to your clipboard")
         auto_hide_clip_button_tooltip = CreateToolTip(auto_hide_clip_button, "Automatically hides the clip in your task bar to keep it out of the way")
-
-        ahkbutton = Button(settings_window_root, text = "AHK Options", command = lambda x = settings_window_root : ahk_win(x))
-        ahkbutton.grid(column = 4, row = 6)
-        notes_label_tooltip = CreateToolTip(ahkbutton, "Allows AHK hotkeys \n-Makes hotkeys suppressed \n-Run AHK code upon hotkey")
 
         hotkey_1_label = Label(settings_window_root, text = "Clip Hotkey")
         hotkey_2_label = Label(settings_window_root, text = "Gif Hotkey")
