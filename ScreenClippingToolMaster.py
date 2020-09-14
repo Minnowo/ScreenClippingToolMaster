@@ -662,8 +662,8 @@ class snipping_tool():
         for canvas in self.gif_canvas:
             for bind in ["<ButtonPress-1>", "<B1-Motion>", "<ButtonRelease-1>"]:canvas.unbind(bind)
             canvas.bind("<ButtonPress-1>", lambda event, widget = buttons : top(event, widget))
-        del self.gif_canvas
-        self.gif_canvas = []
+
+        self.gif_canvas.clear()
 
 
     
@@ -710,9 +710,7 @@ class snipping_tool():
                 self.threads.remove(i)
         gc.collect()
 
-    ##***************** Put the border geometry for the clip back to normal *************. 
-    #def reset_border(self, win, w, h, x, y):
-    #    win.geometry("{}x{}+{}+{}".format(w, h, x, y))
+
 
     @cooldown(0.5)
     def crop_out_border(self, remove_title_bar = False):
@@ -754,19 +752,13 @@ class snipping_tool():
             win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
             win32clipboard.CloseClipboard()
         else:
-            #w, h, x, y = win.winfo_width(), win.winfo_height(), win.winfo_x(), win.winfo_y()
-            #if not win.overrideredirect(): 
-            #    win.overrideredirect(1)
-            #    win.attributes('-topmost', 'true')
-            #win.geometry("{}x{}+{}+{}".format(w - self.border_thiccness, h - self.border_thiccness, x, y))
-            #win.update()
-            #time.sleep(0.095)            #small delay to allow it time to update
+
             kb.send("Alt+print screen") # Only copies the image at the end of function so below must use something non blocking, but still need a small delay
-            #self.crop_out_border()
+
             if win.overrideredirect():
-                timer = threading.Timer(0.01, self.crop_out_border)
+                timer = threading.Timer(0.05, self.crop_out_border)
             else:
-                timer = threading.Timer(0.01, lambda x = True : self.crop_out_border(x))
+                timer = threading.Timer(0.05, lambda x = True : self.crop_out_border(x))
             self.threads.append(timer)
             timer.start()
 
@@ -788,13 +780,15 @@ class snipping_tool():
         except KeyError:
             messagebox.showerror(title="", message="The filetype {} is most likely unsupported".format(format), parent=root)
             print(KeyError)
-        except Exception as e: messagebox.showerror(title="", message=f"There was an error that was not a problem with the filetype please tell minnowo \n{e}", parent=root)
+        except Exception as e: 
+            messagebox.showerror(title="", message=f"There was an error that was not a problem with the filetype please tell minnowo \n{e}", parent=root)
+        finally:
+            del f 
+            gc.collect()
 
 
     #***************** Toggle always on top *************. 
     def top_most(self, event, win):
-        #over = 1 if win.overrideredirect() is not None else 0
-        #over = 1 - over
         if win.attributes('-topmost'):
             win.attributes('-topmost', 'false')
             win.overrideredirect(0)
@@ -882,16 +876,14 @@ class snipping_tool():
                         if str(widget.title()).find("clip_window") != -1:
                             widget.attributes('-alpha', .0) 
             self.curx, self.cury = (event.x, event.y)
+
             # format the select area so it can grab from top left to bottom right
-            if self.start_x <= self.curx and self.start_y <= self.cury:   
-                x1, y1, x2, y2 = (int(self.start_x), int(self.start_y), int(self.curx), int(self.cury)) # Right Down
-            elif self.start_x >= self.curx and self.start_y <= self.cury:
-                x1, y1, x2, y2 = (int(self.curx), int(self.start_y), int(self.start_x), int(self.cury))  # Left Down
-            elif self.start_x <= self.curx and self.start_y >= self.cury:
-                x1, y1, x2, y2 = (int(self.start_x), int(self.cury), int(self.curx), int(self.start_y)) # Right Up 
-            elif self.start_x >= self.curx and self.start_y >= self.cury:
-                x1, y1, x2, y2 = (int(self.curx), int(self.cury), int(self.start_x), int(self.start_y)) # Left Up
-        
+            if self.start_x <= self.curx and self.start_y <= self.cury:   x1, y1, x2, y2 = (self.start_x, self.start_y, self.curx, self.cury) # Right Down
+            elif self.start_x >= self.curx and self.start_y <= self.cury: x1, y1, x2, y2 = (self.curx, self.start_y, self.start_x, self.cury)  # Left Down
+            elif self.start_x <= self.curx and self.start_y >= self.cury: x1, y1, x2, y2 = (self.start_x, self.cury, self.curx, self.start_y) # Right Up 
+            elif self.start_x >= self.curx and self.start_y >= self.cury: x1, y1, x2, y2 = (self.curx, self.cury, self.start_x, self.start_y) # Left Up
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
             img, monx, imgobj = self.screenshot(x1, y1, x2, y2) # Get img
             date_time = datetime.datetime.now()
             self.save_img_data[str(date_time)] = imgobj
@@ -907,23 +899,24 @@ class snipping_tool():
             date_time = datetime.datetime.now()
             self.save_img_data[str(date_time)] = imgobj
             del imgfromfile
-        if img != None:                            # Create window to display clip 
-            self.display_screen = Toplevel(root, cursor = "arrow")#, .config(cursor="spraycan"
-            #self.display_screen.iconbitmap(bitmap = "Pixture-Stationary-Clip.ico")
-            self.display_screen.title("{}".format(date_time))
-            self.display_screen.minsize(int(width), int(height)) 
-            self.display_screen.attributes('-topmost', 'true')
-            self.display_screen.overrideredirect(1)
-            self.display_screen.resizable(0,0)
-            self.display_screen.geometry('{}x{}+{}+{}'.format((width + self.border_thiccness), (height + self.border_thiccness),(x1 + monx[0]), (y1 + monx[1]))) # +2 gives slight outline on image 
 
-            right_click_menu = Menu(self.display_screen, tearoff = 0)
-            right_click_menu.add_command(label ="Copy", accelerator="Ctrl+C", command = lambda event = None, win= self.display_screen : self.copy(event, win))
-            right_click_menu.add_command(label ="Save", accelerator="Ctrl+S", command = lambda event = None, win= self.display_screen : self.save(event, win))
-            right_click_menu.add_command(label ="OCR", accelerator="Ctrl+T", command = lambda event = None, win= self.display_screen : self.tesseract_clip(event, win))
-            right_click_menu.add_command(label ="AlwaysOnTop", accelerator="Tab", command = lambda event = None, win= self.display_screen : self.top_most(event, win))
-            right_click_menu.add_command(label ="Destroy", accelerator="Esc", command = lambda event = None, win = self.display_screen : self.close(event, win))
-            right_click_menu.add_command(label ="Draw", command = lambda win = self.display_screen : self.enable_drawing( win))
+        if img != None:                            # Create window to display clip 
+            display_screen = Toplevel(root, cursor = "arrow")#, .config(cursor="spraycan"
+
+            display_screen.title("{}".format(date_time))
+            display_screen.minsize(int(width), int(height)) 
+            display_screen.attributes('-topmost', 'true')
+            display_screen.overrideredirect(1)
+            display_screen.resizable(0,0)
+            display_screen.geometry('{}x{}+{}+{}'.format((width + self.border_thiccness), (height + self.border_thiccness),(x1 + monx[0]), (y1 + monx[1]))) # +2 gives slight outline on image 
+
+            right_click_menu = Menu(display_screen, tearoff = 0)
+            right_click_menu.add_command(label ="Copy", accelerator="Ctrl+C", command = lambda event = None, win= display_screen : self.copy(event, win))
+            right_click_menu.add_command(label ="Save", accelerator="Ctrl+S", command = lambda event = None, win= display_screen : self.save(event, win))
+            right_click_menu.add_command(label ="OCR", accelerator="Ctrl+T", command = lambda event = None, win= display_screen : self.tesseract_clip(event, win))
+            right_click_menu.add_command(label ="AlwaysOnTop", accelerator="Tab", command = lambda event = None, win= display_screen : self.top_most(event, win))
+            right_click_menu.add_command(label ="Destroy", accelerator="Esc", command = lambda event = None, win = display_screen : self.close(event, win))
+            right_click_menu.add_command(label ="Draw", command = lambda win = display_screen : self.enable_drawing( win))
             right_click_menu.add_separator() 
             right_click_menu.add_command(label ="SnapshotMode", accelerator= self.snapshot, command = lambda :  self.toggle_snapshot_mode())
             right_click_menu.add_command(label ="DelayMode", accelerator= self.delayed_clip , command = lambda :  self.toggle_delay_mode())
@@ -937,36 +930,37 @@ class snipping_tool():
             right_click_menu.add_separator()
             right_click_menu.add_command(label ="Settings", command = lambda :  self.settings_window())
 
-            self.label1 = Canvas(self.display_screen,  bg = self.border_color, borderwidth = self.border_thiccness, highlightthickness=0)#, width = width, height = height) # border color
-            self.label1.pack(expand = True, fill = BOTH)
-            self.label1.create_image(0, 0, image = img, anchor = NW)#image = img # Keep img in memory # VERY IMPORTANT 
-            self.label1.image = img
+            label1 = Canvas(display_screen,  bg = self.border_color, borderwidth = self.border_thiccness, highlightthickness=0)#, width = width, height = height) # border color
+            label1.pack(expand = True, fill = BOTH)
+            label1.create_image(0, 0, image = img, anchor = NW)#image = img # Keep img in memory # VERY IMPORTANT 
+            label1.image = img
 
-            self.label2 = Label(self.display_screen) # Label that holds temp image on zoom in
+            label2 = Label(display_screen) # Label that holds temp image on zoom in
 
-            self.label1.bind("<B1-Motion>", lambda event, win = self.display_screen : self.Dragging(event, win))  # Pass current Toplevel window so it knows what window to drag/copy/destroy
-            self.label1.bind("<Button-1>", lambda event, win = self.label1 : self.SaveLastClickPos(event, win))
-            self.label1.bind('<Escape>', lambda event, win = self.display_screen : self.close(event, win))
-            self.label1.bind("<Control-c>", lambda event, win = self.display_screen : self.copy(event, win))
-            self.label1.bind("<Tab>", lambda event, win = self.display_screen : self.top_most(event, win))
-            self.label1.bind("<Control-s>", lambda event, win= self.display_screen : self.save(event, win))
-            self.label1.bind("<Control-t>", lambda event, win = self.display_screen : self.tesseract_clip(event, win))
-            self.label1.bind("<Button-3>", lambda event, menu = right_click_menu : self.show_popup_menu(event, menu))
+            label1.bind("<B1-Motion>", lambda event, win = display_screen : self.Dragging(event, win))  # Pass current Toplevel window so it knows what window to drag/copy/destroy
+            label1.bind("<Button-1>", lambda event, win = label1 : self.SaveLastClickPos(event, win))
+            label1.bind('<Escape>', lambda event, win = display_screen : self.close(event, win))
+            label1.bind("<Control-c>", lambda event, win = display_screen : self.copy(event, win))
+            label1.bind("<Tab>", lambda event, win = display_screen : self.top_most(event, win))
+            label1.bind("<Control-s>", lambda event, win= display_screen : self.save(event, win))
+            label1.bind("<Control-t>", lambda event, win = display_screen : self.tesseract_clip(event, win))
+            label1.bind("<Button-3>", lambda event, menu = right_click_menu : self.show_popup_menu(event, menu))
 
-            self.label2.bind("<Button-3>", self.remove_zoom)
-            self.display_screen.bind("<MouseWheel>",self.zoomer)
-            self.display_screen.bind("<Motion>", self.crop)
+            label2.bind("<Button-3>", self.remove_zoom)
+            display_screen.bind("<MouseWheel>",self.zoomer)
+            display_screen.bind("<Motion>", self.crop)
 
-            self.display_screen.protocol("WM_DELETE_WINDOW", lambda event = None, win = self.display_screen : self.close(event, win)) 
+            display_screen.protocol("WM_DELETE_WINDOW", lambda event = None, win = display_screen : self.close(event, win)) 
 
             if self.auto_hide_clip:
-                self.top_most(None, self.display_screen)
-                self.display_screen.iconify()
+                self.top_most(None, display_screen)
+                display_screen.iconify()
 
             if self.auto_copy_image:
-                self.copy(None, self.display_screen, True)
+                self.copy(None, display_screen, True)
 
             gc.collect()
+
         if not loadfromfile:
             if (self.snapshot or self.delayed_clip) and not self.multi_clip: self.destroy_all(0)
             if self.multi_clip:
@@ -976,35 +970,49 @@ class snipping_tool():
                             widget.attributes('-alpha', self.default_alpha)
                             widget.lift()
     
+
+
     def remove_zoom(self, event):
-        self.zoomcycle = 0
         del self.img
-        self.img = None
         del event.widget.image
+        self.img = None
+        self.zoomcycle = 0
         event.widget.place(x = -10, y = -10, anchor = "e")  # Move the empty label off the visual window
         gc.collect()
 
+
+
     def zoomer(self,event = None, fake_call = 0):
-        if fake_call == 0:
+        if fake_call == 0:                          # fake call is used to call the function without using the binds allowing the save function to remove zoomed images
             if (event.delta > 0):
                 toplev = event.widget.master if fake_call == 0 else event
                 self.img = self.save_img_data[str(toplev.title())]
-                if self.zoomcycle != int(self.multiplyer // 0.005): self.zoomcycle += 1
+
+                if self.zoomcycle != int(self.multiplyer // 0.005): 
+                    self.zoomcycle += 1
+
             elif (event.delta < 0):
-                if self.zoomcycle != 0: self.zoomcycle -= 1
+
+                if self.zoomcycle != 0: 
+                    self.zoomcycle -= 1
 
         if self.zoomcycle == 0: 
+            del self.img
             toplev = event.widget.master if fake_call == 0 else event
             array_of_children_widgets = toplev.winfo_children()
-            del self.img
             self.img = None
+            array_of_children_widgets[2].place(x = -10, y = -10, anchor = "e")  # Move the empty label off the visual window
+
             try:
                 del array_of_children_widgets[2].image  # [2] == self.label2 (holds zoomed image)
                 array_of_children_widgets[2].image = '' # [2] == self.label2 (holds zoomed image)
             except:pass
-            array_of_children_widgets[2].place(x = -10, y = -10, anchor = "e")  # Move the empty label off the visual window
+            
             gc.collect()
+
         self.crop(event)
+
+
 
     def crop(self,event = None):
         if (self.zoomcycle) != 0 and event != None:
@@ -1084,6 +1092,7 @@ class snipping_tool():
         print(f"auto hide set : {self.auto_hide_clip}")
 
 
+    #***************** Remove hotkeys and create new ones using AHK allowing the user to run AHK code upon hotkeys *************. 
     def toggle_blocking_hotkeys(self):
         self.blocking_hotkeys = 1 - self.blocking_hotkeys
         print(f"AHK hotkeys set: {self.blocking_hotkeys}")
@@ -1140,19 +1149,13 @@ class snipping_tool():
                     if str(widget.title()).find("Settings") == -1:
                         del self.save_img_data[str(widget.title())]
                         widget.destroy()
-            if len(self.save_img_data) == 0:
-                del self.save_img_data
-                self.save_img_data = {}
-            #print(self.save_img_data)
         else:
-            #print("Screenshot mode exited\n")
             for widget in root.winfo_children():
                 if isinstance(widget, Toplevel):
                     if str(widget.title()).find("clip_window") != -1:
                         if self.snapshot or self.delayed_clip:
                             child = widget.winfo_children()
-                            try:
-                                del child[0].image
+                            try: del child[0].image
                             except:pass
                         widget.destroy()
         gc.collect()
@@ -1165,17 +1168,15 @@ class snipping_tool():
             if isinstance(widget, Toplevel):
                 if str(widget.title()).find("clip_window") == -1:
                     widget.deiconify()
-                    #widget.overrideredirect(1)
-                    #widget.attributes("-topmost", True)
+
 
 
 
     def settings_window(self):
-        children = root.winfo_children()
+
         for widget in root.winfo_children():
             if isinstance(widget, Toplevel):
-                title = str(widget.title())
-                if title.find("Settings") != -1:
+                if str(widget.title()).find("Settings") != -1:
                     widget.destroy()
 
 
@@ -1316,12 +1317,16 @@ class snipping_tool():
             self.toggle_win32_clipboard()
             use_win32_clipboard_copy.config(text = f"Win32clipboard {self.win32clipboard}")
             
+        def call_toggle_auto_copy(*args):
+            self.toggle_auto_copy()
+            auto_copy_clip_button.config(text = f"AutoCopyClip {self.auto_copy_image}")
+
+        def call_toggle_auto_hide(*args):
+            self.toggle_auto_hide()
+            auto_hide_clip_button.config(text = f"AutoHideClip {self.auto_hide_clip}")
 
         def show_console(*args):
             PrintLogger.consolewin(root)
-            
-
-        
 
 
         def restore_default(*args):
@@ -1331,31 +1336,34 @@ class snipping_tool():
             self.delayed_clip = 0
             self.border_color = "#ff08ff"
             self.border_thiccness = 1
-            #Global_hotkeys.remove_hotkey(self.clip_app.hwnd, self.clip_app.clip_hotkey[3], self.clip_app.clip_hotkey[0])
-            #Global_hotkeys.remove_hotkey(self.clip_app.hwnd, self.clip_app.gif_hotkey[3], self.clip_app.gif_hotkey[0])
+
+
             if self.hotkey_visual_in_settings["current_hotkey_1"] != '<cmd>+z':
                 try:
                     Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0])
                 except Exception as e:print(e)
+
                 try:
-                    self.clip_hotkey = Global_hotkeys.create_hotkey(self.hwnd, 0, ["<cmd>"], "z", self.on_activate_i) #keyboard.GlobalHotKeys({ '<cmd>+z' : self.on_activate_i})
-                    #self.clip_hotkey.start()
+                    self.clip_hotkey = Global_hotkeys.create_hotkey(self.hwnd, 0, ["<cmd>"], "z", self.on_activate_i) 
                     print("Hotkey 1 has been reset")
                 except Exception as e:print(e)
 
+
             if self.hotkey_visual_in_settings["current_hotkey_2"] != '<cmd>+c':
                 try:
-                    Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) #keyboard.GlobalHotKeys.stop(self.gif_hotkey)
+                    Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) 
                 except Exception as e:print(e)
+
                 try:
-                    self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, ["<cmd>"], "c", self.on_activate_gif) #self.gif_hotkey =  keyboard.GlobalHotKeys({ '<cmd>+c' : self.on_activate_gif})
-                    #self.gif_hotkey.start()
+                    self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, ["<cmd>"], "c", self.on_activate_gif) 
                     print("Hotkey 2 has been reset")
                 except Exception as e:print(e)
+
 
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                               "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1,}
             self.settings_window()
+
 
         def ahk_win(parent, *args):
             for widget in parent.winfo_children():
@@ -1386,9 +1394,6 @@ class snipping_tool():
             blocking_hotkeys_button = Button(ahk_window, text = f"AHK Hotkeys {self.blocking_hotkeys}", command = blocking_toggle)
             blocking_hotkeys_button.grid(column = 0, row = 0)
 
-            #script_input_label = Label(ahk_window, text ="AHK code to execute upon blocking hotkey")
-            #script_input_label.grid(column = 0, row = 1)
-
             script_input_1 = Text(ahk_window, width = 55, height = 15)
             script_input_1.insert(END, self.scripts["current_hotkey_1"])
             script_input_1.grid(column = 0, row = 2)
@@ -1410,18 +1415,21 @@ class snipping_tool():
             #"Known Problems:\n-If the only modifier key is the windows key, hotkey doesn't work \n-Each hotkey is run in its own AHK script\n-Tray icon persists even if the AHK script is killed via main (hover mouse to remove)"
             hotkey_label_info_tooltip = CreateToolTip(hotkey_label_info, "Known Problems:\n-If the only modifier key is the windows key, hotkey doesn't work \n-Each hotkey is run in its own AHK script\n-Tray icon persists even if the AHK script is killed via main \n\nNotes: \n-Suspending, killing, or pausing the AHK scripts doesn't affect main hotkeys")
 
+
         def change_border(*args):
             a = askcolor(color = self.border_color)
             if a[1]:
                 self.border_color = a[1]
                 print(f"clip border color = {self.border_color}")
 
+
         def call_open_img(*args):
             root.after(0, open_image)
 
+
         def open_image(*args):
             img = askopenfilename(parent=root)
-            trans = False
+
             if img:
                 try:
                     with PIL.Image.open(img) as image:
@@ -1431,18 +1439,10 @@ class snipping_tool():
                 except Exception as e:
                     messagebox.showerror(title="", message=f"{e}", parent=root)
                 finally:
-                    del image
-                    del img
+                    del image, img
                     gc.collect()
                 
-        def call_toggle_auto_copy(*args):
-            self.toggle_auto_copy()
-            auto_copy_clip_button.config(text = f"AutoCopyClip {self.auto_copy_image}")
 
-
-        def call_toggle_auto_hide(*args):
-            self.toggle_auto_hide()
-            auto_hide_clip_button.config(text = f"AutoHideClip {self.auto_hide_clip}")
 
 
         settings_window_root = Toplevel(root)
@@ -1708,7 +1708,6 @@ class tray():
 
 if __name__ == '__main__':
     root = Tk()
-    #root.tk.call('wm', 'iconphoto', root._w, PhotoImage(file='D:\\pictures\\MineCraftTxtr\\diamond_sword.png'))
     snip = snipping_tool()
     tr = tray(snip)
     snip.tray = tr
