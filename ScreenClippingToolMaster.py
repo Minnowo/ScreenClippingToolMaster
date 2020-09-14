@@ -228,7 +228,6 @@ class snipping_tool():
     def __init__(self):
         self.tray = None
         
-
         self.drag_box = None        # Used to show selected area
         self.start_x = None         # On click x
         self.start_y = None         # On click y
@@ -259,46 +258,29 @@ class snipping_tool():
         self.win32clipboard = 1     # Copy using win32 or prnt screen
         self.blocking_hotkeys = 0   # create ahk hotkey that does nothing accept block the keypress of the hotkey
         
-        self.bind_func_ids = {}     # Keep track of which clip screen has which binds (so they can be disabled later)
+        
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
         self.lines_list = {}
         self.gif = []               # Keep all the pictures taken in gif mode
         self.threads = []           # Keep track of used threads to join back later
+        self.gif_canvas = []     # Keep track of gif screens to disable binds
         self.temp_hotkeys_for_ahk = []
         self.scripts = { "current_hotkey_1" : ";Clipping Hotkey\n;AHK code to execute upon hotkey\nMenu, tray, Tip, Clipping Hotkey" + "\nProcess, Exist, %s\nif (ErrorLevel = 0){\nmsgbox, %s is not open\n}" % (str(*sys.argv).split('\\')[-1], str(*sys.argv).split('\\')[-1]),"current_hotkey_2" : ";Gif Hotkey\n;AHK code to execute upon hotkey\nMenu, tray, Tip, Gif Hotkey" + "\nProcess, Exist, %s\nif (ErrorLevel = 0){\nmsgbox, %s is not open\n}" % (str(*sys.argv).split('\\')[-1], str(*sys.argv).split('\\')[-1])}
         self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                           "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
         print("snipping tool started")
 
-        # drawing on clips
-        # blocking hotkeys
-
 
 
         #***************** Hide root window *************. 
         root.withdraw()
         root.attributes('-alpha', .0)
-        root.attributes("-transparent", "blue")
         root.attributes('-topmost', 'true')
    
         # <cmd> == WindowsKey, <alt> == AltKey, <ctrl> == CtrlKey, <shift> = shift
         self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, ["<cmd>"], "z", self.on_activate_i) #keyboard.GlobalHotKeys({ '<cmd>+z': self.on_activate_i})
-        #self.clip_hotkey.start()
-
         self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, ["<cmd>"], "c", self.on_activate_gif) #keyboard.GlobalHotKeys({ '<cmd>+c': self.on_activate_gif})
-        #self.gif_hotkey.start()
 
-        #script = """ToolTip, Timed ToolTip`nThis will be displayed for 5 seconds.
-        #            SetTimer, RemoveToolTip, -5000
-        #            return
-
-        #            RemoveToolTip:
-        #            ToolTip
-        #            return"""
-
-        
-        
-        #blocking_hotkeys.create_blocking_hotkey("^g", "traytip, hello", "Clipping_hotkey_2")
 
 
     #*****************                *************. 
@@ -406,62 +388,53 @@ class snipping_tool():
     @cooldown(1.5)
     def create_gif_window(self):
         self.destroy_all(0)
-        self.drag_box = None
-        try:
-            for i in get_monitors(): # Create clipping window for all monitors 
 
-                self.master_screen = Toplevel(root)
-                self.master_screen.title(".clip_window.{}".format(get_monitors().index(i))) # Name the clip windows so they can all be destroyed later
-        
-                self.master_screen.minsize(int(i.width), int(i.height))                     # make the min size of the window the size of the screen
-                self.master_screen.geometry('+{}+{}'.format(i.x, i.y)) # Put clipping window at screen pos
-                self.master_screen.attributes("-transparent", "blue")
-                self.master_screen.attributes('-alpha', .3)     # make transparent
+        monitors = get_monitors()
+        for index, monitor in enumerate(monitors): 
+            monx = int(monitor.x); mony = int(monitor.y); width = int(monitor.width); height = int(monitor.height)
 
-                self.screen = Canvas(self.master_screen, bg="grey11", highlightthickness = 0)
-                self.screen.pack(fill=BOTH, expand=YES)
+            master_screen = Toplevel(root)
+            master_screen.title(f"clip_window{index}")
+            master_screen.minsize(width, height)      
+            master_screen.geometry(f"+{monx}+{mony}")
+            master_screen.attributes("-transparent", "blue")
+            master_screen.attributes('-alpha', .3) 
+            master_screen.overrideredirect(1) 
+            master_screen.state('zoomed')   
+            master_screen.deiconify()    
+            master_screen.attributes("-topmost", True) 
+            
+            screen = Canvas(master_screen, bg="grey11", highlightthickness = 0)
+            screen.pack(fill=BOTH, expand=YES)
 
-                bind1, bind2, bind3 = "<ButtonPress-1>", "<B1-Motion>", "<ButtonRelease-1>"
+            screen.bind("<ButtonRelease-3>", self.OnRightClick)
+            screen.bind("<ButtonPress-1>", self.OnLeftClick)
+            screen.bind("<B1-Motion>", self.OnDrag)
+            screen.bind("<ButtonRelease-1>", self.OnReleaseGif)
 
-                self.screen.bind("<ButtonRelease-3>", self.on_right_click)
-                self.screen.bind(bind1, self.on_left_click)
-                self.screen.bind(bind2, self.on_move)
-                self.screen.bind(bind3, self.on_button_release_gif)
+            self.gif_canvas.append(screen) 
 
-                self.bind_func_ids[self.screen] = [bind1, bind2, bind3] # Keep track of the binds on each window to disable them later 
+            master_screen.lift()
+            master_screen.update()
 
-                self.master_screen.state('zoomed')     # force to fit screen event if sizing above is wrong
-                self.master_screen.overrideredirect(1) # basically makes it borderless fullscreen
-
-                self.master_screen.deiconify()                  # unhide 
-                self.master_screen.lift()                       # bring to front
-                self.master_screen.attributes("-topmost", True) #always on top
-                self.master_screen.update()
-        except Exception as e:
-            print(e)
-            root.after(50 , self.create_gif_window)
             
 
     #***************** Create the clipping window for each monitor *************. 
     @cooldown(1.5)
     def create_clip_window(self):
         self.destroy_all(0)
-        del self.lines_list
-        self.lines_list = {}
-        self.drag_box = None
+
         monitors = get_monitors()
         if self.delayed_clip:
             if any([i for i in self.save_img_data.keys() if i.find("delay_clip") != -1]): # If there are any delay_clips in the dictionary display them
-                print('already taken pic')
-                for x, i in enumerate(monitors): # Create clipping window for all monitors 
+                for x, i in enumerate(monitors): 
                     self.lines_list[x] = {"dims" : [i.width, i.height, i.name], "lines" : None}
-                    delayed_clips = [i for i in self.save_img_data.keys() if i.find("delay_clip") != -1] # Get all the clips tagged with delay_clip
-                    print(delayed_clips)
-                    mon_number = monitors.index(i)
-                    img = self.save_img_data[delayed_clips[mon_number]] # Get the image data
-                    img = ImageTk.PhotoImage(img)
+                    delayed_clips = [i for i in self.save_img_data.keys() if i.find("delay_clip") != -1] # Get all the clips tagged with delay_clip                   
+                    img = ImageTk.PhotoImage(self.save_img_data[delayed_clips[x]])
                     self.make_clip_win(i, 1, img)
                     del img
+                    print(delayed_clips)
+
                 for i in delayed_clips:
                     del self.save_img_data[i]       # Remove all the delay_clips 
             else:                                   # If there are no clips take screenshots 
@@ -472,62 +445,57 @@ class snipping_tool():
                     del img
                     print("image saved")
         else:
-            try:
-                for x, i in enumerate(monitors): # Create clipping window for all monitors 
-                    self.lines_list[x] = {"dims" : [i.width, i.height, i.name], "lines" : None}
-                    if self.snapshot:
-                        img = getRectAsImage((i.x, i.y, i.width + i.x, i.height + i.y))
-                        img = ImageTk.PhotoImage(img)
-                        self.make_clip_win(i, self.snapshot, img)
-                        del img
-                    else:
-                        self.make_clip_win(i, self.snapshot)
-            except Exception as e:
-                print(e)
-                root.after(50 , self.create_clip_window)
+            for x, i in enumerate(monitors): # Create clipping window for all monitors 
+                self.lines_list[x] = {"dims" : [i.width, i.height, i.name], "lines" : None}
+                if self.snapshot:
+                    img = ImageTk.PhotoImage(getRectAsImage((i.x, i.y, i.width + i.x, i.height + i.y)))
+                    self.make_clip_win(i, self.snapshot, img)
+                    del img
+                else:
+                    self.make_clip_win(i, self.snapshot)
+
         gc.collect()
 
 
     #***************** Make clip window *************. 
     def make_clip_win(self, monitorobj, snapshot, img = None):
+        monx = int(monitorobj.x); mony = int(monitorobj.y); width = int(monitorobj.width); height = int(monitorobj.height)
 
-        self.master_screen = Toplevel(root)
-        self.master_screen.title(".clip_window.{}".format(get_monitors().index(monitorobj))) # Name the clip windows so they can all be destroyed later
-        
-        self.master_screen.minsize(int(monitorobj.width), int(monitorobj.height))                     # make the min size of the window the size of the screen
-        self.master_screen.geometry('+{}+{}'.format(monitorobj.x, monitorobj.y)) # Put clipping window at screen pos
-        self.master_screen.attributes("-transparent", "blue")
+        master_screen = Toplevel(root)
+        master_screen.title(f"clip_window_{datetime.datetime.now()}")   # Name the clip windows so they can all be destroyed later        
+        master_screen.minsize(width, height)                            # make the min size of the window the size of the screen
+        master_screen.geometry(f"+{monx}+{mony}")                       # Put clipping window at screen pos
+        master_screen.attributes("-transparent", "blue")
+        master_screen.overrideredirect(1)
+        master_screen.state('zoomed')  
+        master_screen.deiconify()
+        master_screen.attributes("-topmost", True)
             
-        self.screen = Canvas(self.master_screen, bg="grey11", highlightthickness = 0)
-            
+        screen = Canvas(master_screen, bg="grey11", highlightthickness = 0)
+        screen.pack(fill=BOTH, expand=YES)
+
+        screen.bind("<ButtonRelease-3>", self.OnRightClick)
+        screen.bind("<ButtonPress-1>", self.OnLeftClick)
+        screen.bind("<B1-Motion>", self.OnDrag)
+        screen.bind("<ButtonRelease-1>", self.OnRelease)
+
         if snapshot: 
-            self.screen.create_image(0, 0, image = img, anchor=NW)  
-            self.screen.image = img # Keep image in memory 
-            self.screen.focus_set()
-            self.screen.focus_force()
-        else: self.master_screen.attributes('-alpha', .3)     # make transparent
-
-        self.screen.pack(fill=BOTH, expand=YES)
-
-        self.screen.bind("<ButtonRelease-3>", self.on_right_click)
-        self.screen.bind("<ButtonPress-1>", self.on_left_click)
-        self.screen.bind("<B1-Motion>", self.on_move)
-        self.screen.bind("<ButtonRelease-1>", self.on_button_release)
+            screen.create_image(0, 0, image = img, anchor=NW)  
+            screen.image = img                                          # Keep image in memory 
+        else: 
+            master_screen.attributes('-alpha', .3) 
 
         if self.cursor_lines:
-            for i in self.lines_list.items():
-                if i[1]["dims"][2] == monitorobj.name:
-                    self.lines_list[i[0]]["lines"] = [self.screen.create_line(0,0,1,1,fill=self.border_color), self.screen.create_line(0,0,1,1,fill=self.border_color)]
-                    self.lines_list[self.screen] = self.lines_list.pop(i[0])
-            self.master_screen.bind("<Motion>", self.lines)
+            master_screen.bind("<Motion>", self.lines)
+            for x, i in self.lines_list.items():
+                print(x)
+                if i["dims"][2] == monitorobj.name and type(x) == int:
+                    self.lines_list[x]["lines"] = [screen.create_line(0,0,1,1,fill=self.border_color), screen.create_line(0,0,1,1,fill=self.border_color)]
+                    self.lines_list[screen] = self.lines_list.pop(x)
 
-        self.master_screen.state('zoomed')     # force to fit screen event if sizing above is wrong
-        self.master_screen.overrideredirect(1) # basically makes it borderless fullscreen
-
-        self.master_screen.deiconify()                  # unhide 
-        self.master_screen.lift()                       # bring to front
-        self.master_screen.attributes("-topmost", True) #always on top
-        self.master_screen.update()
+            
+        master_screen.lift()                        
+        master_screen.update()
 
 
     #***************** Move the lines in the clip window that follow your mouse *************. 
@@ -545,40 +513,45 @@ class snipping_tool():
 
 
     #***************** Destroy the clipping window *************. 
-    def on_right_click(self, event):
-        try:
-            if self.cursor_lines and not self.multi_clip:
-                for i in self.lines_list[event.widget]["lines"]:
-                    event.widget.delete(i)
-            event.widget.delete(self.drag_box)
-            self.drag_box = None
-        except:pass
+    def OnRightClick(self, event):   
+        event.widget.delete(self.drag_box)
+        self.drag_box = None
+
+        if self.cursor_lines:
+            for i in self.lines_list[event.widget]["lines"]:
+                try:event.widget.delete(i)
+                except:pass
+
         self.destroy_all(0)
 
 
     #***************** Create the drag box *************. 
-    def on_left_click(self, event):
-        self.start_x = self.screen.canvasx(event.x)
-        self.start_y = self.screen.canvasy(event.y)
+    def OnLeftClick(self, event):
+        self.start_x = event.widget.canvasx(event.x)
+        self.start_y = event.widget.canvasy(event.y)
         self.monitorid = windll.user32.MonitorFromPoint(int(root.winfo_pointerx()), int(root.winfo_pointery()), 2)
-        if self.snapshot or self.delayed_clip: self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1)
-        else: self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1, fill="blue")
+
+        if self.snapshot or self.delayed_clip: 
+            self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1)
+        else: 
+            self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1, fill="blue")
 
 
     #***************** Expand the drag box *************. 
-    def on_move(self, event):
+    def OnDrag(self, event):
         self.curx, self.cury = (event.x, event.y)
         event.widget.coords(self.drag_box, self.start_x, self.start_y, self.curx, self.cury)
 
 
     #***************** After selecting the area reset the hotkey and show the clip *************. 
-    def on_button_release(self, event): 
+    def OnRelease(self, event): 
         if self.cursor_lines and not self.multi_clip:
             for i in self.lines_list[event.widget]["lines"]:
                 event.widget.delete(i)
         event.widget.delete(self.drag_box)
+        del self.lines_list
+        self.lines_list = {}
         self.drag_box = None
-        #self.end_monitorid = windll.user32.MonitorFromPoint(int(root.winfo_pointerx()), int(root.winfo_pointery()), 2)
         root.after(70 , lambda : self.show_clip_window(event)) # Call clip window 
 
 
@@ -594,11 +567,13 @@ class snipping_tool():
 
     #***************** Stop taking pictures, save the gif *************. 
     def stop_gif(self):
+        self.record_on = False
+
         for widget in root.winfo_children():
             if isinstance(widget, Toplevel):
                 if str(widget.title()).find("clip_window") != -1:
                     widget.attributes('-alpha', .3)  
-        self.record_on = False
+
         for i in self.threads.copy():
             i.join()
             self.threads.remove(i)
@@ -608,37 +583,44 @@ class snipping_tool():
         
     #***************** Save gif *************. 
     def save_gif(self):
+        self.record_on = False
+
         for widget in root.winfo_children():
             if isinstance(widget, Toplevel):
                 if str(widget.title()).find("clip_window") != -1: # Set all clip windows back to regular transparency 
                     widget.attributes('-alpha', .3)  
-        self.record_on = False
+        
         for i in self.threads.copy():
             i.join()                # Clean up threads
-            self.threads.remove(i) 
+            del self.threads[self.threads.index(i)]
+
         savename = datetime.datetime.now()
         savename = savename.strftime("%Y-%m-%d_%H-%M-%S.%f")
         f = asksaveasfile(initialfile = f"{savename}", mode='w', defaultextension=".gif", parent=root)
-        if f is None:          
-            return
+
+        if f is None: return
         print(f.name)
+
         try:
             with imageio.get_writer(f"{f.name}", mode='I') as writer:
-                for i in self.gif: 
+                for i in self.gif.copy(): 
                     writer.append_data(numpy.array(i))    
+                    del self.gif[self.gif.index(i)]
         except KeyError:
             messagebox.showerror(title="", message="The filetype {} is most likely unsupported".format(format), parent=root)
             print(KeyError)
         except Exception as e: 
             print(e)
             messagebox.showerror(title="", message=f"There was an error that was not a problem with the filetype please tell minnowo \n{e}", parent=root)
-        gc.collect()
+        del f
+        self.gif.clear()
         self.destroy_all()
+        gc.collect()
 
 
 
     #***************** When you let go of the gif select window, get coords, create buttons to start/stop recording the video *************. 
-    def on_button_release_gif(self, event): 
+    def OnReleaseGif(self, event): 
         def top(event, widget):
             widget.lift()
         def on_unmap(event, widget):
@@ -677,14 +659,11 @@ class snipping_tool():
         save_record_button = Button(buttons, text = "Save", command = self.save_gif)
         save_record_button.pack(side = LEFT, expand = True, fill = BOTH)
 
-        a = self.bind_func_ids.copy()
-        a = a.items()
-        for canvas, bind in a:
-            for i in bind:
-                canvas.unbind(i)
+        for canvas in self.gif_canvas:
+            for bind in ["<ButtonPress-1>", "<B1-Motion>", "<ButtonRelease-1>"]:canvas.unbind(bind)
             canvas.bind("<ButtonPress-1>", lambda event, widget = buttons : top(event, widget))
-        del self.bind_func_ids
-        self.bind_func_ids = {}
+        del self.gif_canvas
+        self.gif_canvas = []
 
 
     
