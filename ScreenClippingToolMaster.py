@@ -1119,57 +1119,56 @@ class snipping_tool():
             self.multiplyer = float(zoom_multiplyer_Combobox.get())
             self.border_thiccness = int(border_thiccness_combobox.get())
 
-            if not self.blocking_hotkeys:
+            
 
-                if any(i not in ["WindowsKey", "Alt", "Ctrl", "Shift", "None"] for i in [hotkey_1_modifyer_1.get(), hotkey_1_modifyer_2.get(), hotkey_1_modifyer_3.get()]): 
-                    messagebox.showerror(title="", message="Hotkey 1 modifier was not any of the values given", parent=root)
-                    return
-                if any(i not in ["WindowsKey", "Alt", "Ctrl", "Shift", "None"] for i in [hotkey_2_modifyer_1.get(), hotkey_2_modifyer_2.get(), hotkey_2_modifyer_3.get()]): 
-                    messagebox.showerror(title="", message="Hotkey 2 modifier was not any of the values given", parent=root)
-                    return
+            if any(i not in ["WindowsKey", "Alt", "Ctrl", "Shift", "None"] for i in [hotkey_1_modifyer_1.get(), hotkey_1_modifyer_2.get(), hotkey_1_modifyer_3.get()]): 
+                messagebox.showerror(title="", message="Hotkey 1 modifier was not any of the values given", parent=root)
+                return
+            if any(i not in ["WindowsKey", "Alt", "Ctrl", "Shift", "None"] for i in [hotkey_2_modifyer_1.get(), hotkey_2_modifyer_2.get(), hotkey_2_modifyer_3.get()]): 
+                messagebox.showerror(title="", message="Hotkey 2 modifier was not any of the values given", parent=root)
+                return
 
 
-                correct_modifyers_for_hotkey = {"WindowsKey" : "<cmd>", "Alt" : "<alt>", "Ctrl" : "<ctrl>", "Shift" : "<shift>"}
+            correct_modifyers_for_hotkey = {"WindowsKey" : "<cmd>", "Alt" : "<alt>", "Ctrl" : "<ctrl>", "Shift" : "<shift>"}
 
-                hotkey1 = list( dict.fromkeys([i for i in [hotkey_1_modifyer_1.get(), hotkey_1_modifyer_2.get(), hotkey_1_modifyer_3.get(), hotkey_1_key.get()] if i != "None"]))
-                hotkey2 = list( dict.fromkeys([i for i in [hotkey_2_modifyer_1.get(), hotkey_2_modifyer_2.get(), hotkey_2_modifyer_3.get(), hotkey_2_key.get()] if i != "None"]))
+            hotkey1 = list( dict.fromkeys([i for i in [hotkey_1_modifyer_1.get(), hotkey_1_modifyer_2.get(), hotkey_1_modifyer_3.get(), hotkey_1_key.get()] if i != "None"]))
+            hotkey2 = list( dict.fromkeys([i for i in [hotkey_2_modifyer_1.get(), hotkey_2_modifyer_2.get(), hotkey_2_modifyer_3.get(), hotkey_2_key.get()] if i != "None"]))
 
-                hotkey1_formated = [correct_modifyers_for_hotkey[i] for i in hotkey1 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
-                hotkey2_formated = [correct_modifyers_for_hotkey[i] for i in hotkey2 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
+            hotkey1_formated = [correct_modifyers_for_hotkey[i] for i in hotkey1 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
+            hotkey2_formated = [correct_modifyers_for_hotkey[i] for i in hotkey2 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
 
-                hotkey1_formated.append(hotkey1[-1].lower())
-                hotkey2_formated.append(hotkey2[-1].lower())
+            hotkey1_formated.append(hotkey1[-1].lower())
+            hotkey2_formated.append(hotkey2[-1].lower())
 
-                final_hotkey1 = "+".join(hotkey1_formated)
-                final_hotkey2 = "+".join(hotkey2_formated)
+            final_hotkey1 = "+".join(hotkey1_formated)
+            final_hotkey2 = "+".join(hotkey2_formated)
 
-                print(final_hotkey1)
-                print(final_hotkey2)
+            print(final_hotkey1)
+            print(final_hotkey2)
 
-                if final_hotkey1 != self.hotkey_visual_in_settings["current_hotkey_1"]:
-                    del hotkey1_formated[-1]
-                    try:
-                        Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0]) #keyboard.GlobalHotKeys.stop(self.clip_hotkey)
-                        self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, hotkey1_formated, hotkey1[-1].lower(), self.on_activate_i) #keyboard.GlobalHotKeys({ final_hotkey1 : self.on_activate_i})
-                        #self.clip_hotkey.start()
-                        print(f"New hotkey set for Standard mode, {final_hotkey1}")
-                    except Exception as e:print(e)
+            if final_hotkey1 != self.hotkey_visual_in_settings["current_hotkey_1"]:
+                del hotkey1_formated[-1]
+                try:
+                    Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0]) #keyboard.GlobalHotKeys.stop(self.clip_hotkey)
+                    self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, hotkey1_formated, hotkey1[-1].lower(), self.on_activate_i) #keyboard.GlobalHotKeys({ final_hotkey1 : self.on_activate_i})
+                    #self.clip_hotkey.start()
+                    print(f"New hotkey set for Standard mode, {final_hotkey1}")
+                except Exception as e:print(e)
 
-                if final_hotkey2 != self.hotkey_visual_in_settings["current_hotkey_2"]:
-                    del hotkey2_formated[-1]
-                    try:
-                        Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) #keyboard.GlobalHotKeys.stop(self.gif_hotkey)
-                        self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, hotkey2_formated, hotkey2[-1].lower(), self.on_activate_gif) #keyboard.GlobalHotKeys({ final_hotkey2 : self.on_activate_gif})
-                        #self.gif_hotkey.start()
-                        print(f"New hotkey set for Gif mode, {final_hotkey2}")
-                    except Exception as e:print(e)
+            if final_hotkey2 != self.hotkey_visual_in_settings["current_hotkey_2"]:
+                del hotkey2_formated[-1]
+                try:
+                    Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) #keyboard.GlobalHotKeys.stop(self.gif_hotkey)
+                    self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, hotkey2_formated, hotkey2[-1].lower(), self.on_activate_gif) #keyboard.GlobalHotKeys({ final_hotkey2 : self.on_activate_gif})
+                    #self.gif_hotkey.start()
+                    print(f"New hotkey set for Gif mode, {final_hotkey2}")
+                except Exception as e:print(e)
 
             
 
-                self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : hotkey_1_modifyer_3.get(), "hotkey_1_key" : hotkey_1_key.get(), "current_hotkey_1" : final_hotkey1,
+            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : hotkey_1_modifyer_3.get(), "hotkey_1_key" : hotkey_1_key.get(), "current_hotkey_1" : final_hotkey1,
                                                   "hotkey_2_modifyer_1" : hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : hotkey_2_modifyer_3.get(), "hotkey_2_key" : hotkey_2_key.get(), "current_hotkey_2" : final_hotkey2}
-            else:
-                messagebox.showerror(title="", message="Cannot re create new hotkeys while using AHK hotkeys", parent=root)
+           
 
             self.settings_window()
 
