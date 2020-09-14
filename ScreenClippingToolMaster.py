@@ -394,7 +394,7 @@ class snipping_tool():
             monx = int(monitor.x); mony = int(monitor.y); width = int(monitor.width); height = int(monitor.height)
 
             master_screen = Toplevel(root)
-            master_screen.title(f"clip_window{index}")
+            master_screen.title(f"clip_window_gif{index}")
             master_screen.minsize(width, height)      
             master_screen.geometry(f"+{monx}+{mony}")
             master_screen.attributes("-transparent", "blue")
@@ -517,7 +517,7 @@ class snipping_tool():
         event.widget.delete(self.drag_box)
         self.drag_box = None
 
-        if self.cursor_lines:
+        if self.cursor_lines and not self.multi_clip and event.widget.master.title().find("gif") == -1:
             for i in self.lines_list[event.widget]["lines"]:
                 try:event.widget.delete(i)
                 except:pass
@@ -548,9 +548,9 @@ class snipping_tool():
         if self.cursor_lines and not self.multi_clip:
             for i in self.lines_list[event.widget]["lines"]:
                 event.widget.delete(i)
+            self.lines_list.clear()
+
         event.widget.delete(self.drag_box)
-        del self.lines_list
-        self.lines_list = {}
         self.drag_box = None
         root.after(70 , lambda : self.show_clip_window(event)) # Call clip window 
 
@@ -623,7 +623,7 @@ class snipping_tool():
     def OnReleaseGif(self, event): 
         def top(event, widget):
             widget.lift()
-        def on_unmap(event, widget):
+        def on_unmap(event, widget): 
             widget.deiconify()
 
 
@@ -698,8 +698,7 @@ class snipping_tool():
         try:
             del win.winfo_children()[2].image
         except:pass
-        del self.img
-        del self.save_img_data[win.title()] 
+        del self.img, self.save_img_data[win.title()] 
         self.zoomcycle = 0
         self.img = None
         print(f"clip {win.title()} has been destroyed")
@@ -870,7 +869,7 @@ class snipping_tool():
     def show_clip_window(self, event, loadfromfile = False, imgfromfile = None):
         if not loadfromfile:
             if not self.snapshot and not self.delayed_clip and not self.multi_clip: self.destroy_all(0)
-            if self.multi_clip:
+            if self.multi_clip and not self.delayed_clip:
                 for widget in root.winfo_children():
                     if isinstance(widget, Toplevel):
                         if str(widget.title()).find("clip_window") != -1:
@@ -963,7 +962,7 @@ class snipping_tool():
 
         if not loadfromfile:
             if (self.snapshot or self.delayed_clip) and not self.multi_clip: self.destroy_all(0)
-            if self.multi_clip:
+            if self.multi_clip and not self.delayed_clip:
                 for widget in root.winfo_children():
                     if isinstance(widget, Toplevel):
                         if str(widget.title()).find("clip_window") != -1:
@@ -1062,12 +1061,16 @@ class snipping_tool():
         print(f"delayed mode set: {self.delayed_clip}")
         self.tray.update_hov_text(self.tray.sysTrayIcon)
 
+    def ask_toggle_auto_hide(self):
+        a = messagebox.askquestion(title = "", message = "would you like to enable autohide clips to keep them out of the way when clipping?", parent = root)
+        if a == "yes": self.toggle_auto_hide()
 
     #***************** Toggle multi mode *************. 
     def toggle_multi_mode(self):
         self.multi_clip = 1 - self.multi_clip # Toggle from 0 to 1 and 1 to 0
         print(f"multi clip mode set: {self.multi_clip}")
         self.tray.update_hov_text(self.tray.sysTrayIcon)
+        if self.multi_clip and not self.auto_hide_clip: root.after(0, self.ask_toggle_auto_hide)
 
 
     #***************** Toggle lines *************. 
