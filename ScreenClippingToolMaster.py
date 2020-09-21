@@ -176,7 +176,7 @@ class Global_hotkeys:
 
     @classmethod
     def create_hotkey(cls, hwnd : int, hotkey_id : int, modifier_keys : list, activate_key : int, callback, *args):
-        """creates a blocking hotkey (Windows key modifier not blocked)\nhotkey_id must be int \nmodifier_keys should be any in [MOD_WINDOWS, MOD_SHIFT, MOD_ALT, MOD_CONTROL, NONE] \nactivate_key should be string"""
+        """creates a blocking hotkey (Windows key modifier not blocked)\nhotkey_id must be int \nmodifier_keys should be any in ["<cmd>", "<shift>", "<alt>", "<ctrl>", ""] \nactivate_key should be string"""
         activate_key = activate_key.lower()
         if cls.PYNPUT_TO_VK[activate_key]:
             modifier_int = 0; modifier_str = []
@@ -238,6 +238,8 @@ class snipping_tool():
                 self.multi_clip =  settings["multi_clip"]
                 self.win32clipboard = settings["win32clipboard"]
                 self.hotkey_visual_in_settings = settings["hotkeys"]
+                self.line_width = settings["line_width"]
+                self.line_color = settings["line_color"]
                 settings_file.close()
                 print("settings imported successfully")
 
@@ -254,6 +256,8 @@ class snipping_tool():
             self.delayed_clip = 0   # Delayed Clip will save a screenshot in memory and when you press the hotkey to take another screenshot it will display the img in memory and let you crop it
             self.multi_clip = 0     # Lets you clip the same window until you cancel the clip windows 
             self.win32clipboard = 1     # Copy using win32 or prnt screen
+            self.line_width = 5
+            self.line_color = "#ff08ff"
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                               "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}       
             print("no settings file found")
@@ -270,6 +274,8 @@ class snipping_tool():
             self.delayed_clip = 0   # Delayed Clip will save a screenshot in memory and when you press the hotkey to take another screenshot it will display the img in memory and let you crop it
             self.multi_clip = 0     # Lets you clip the same window until you cancel the clip windows 
             self.win32clipboard = 1     # Copy using win32 or prnt screen
+            self.line_width = 5
+            self.line_color = "#ff08ff"
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                               "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
             print("there was an error importing the settings \n{}".format(e))
@@ -825,11 +831,9 @@ class snipping_tool():
 
 
     def paint(self, event, win):
-        line_width = 5
-        paint_color = self.border_color
         if self.old_x and self.old_y:
             win.create_line(self.old_x, self.old_y, event.x, event.y,
-                               width=line_width, fill=paint_color,
+                               width=self.line_width, fill=self.line_color,
                                capstyle=ROUND, smooth=TRUE, splinesteps=36)
         self.old_x = event.x
         self.old_y = event.y
@@ -837,24 +841,58 @@ class snipping_tool():
     def reset(self, event):
         self.old_x, self.old_y = None, None
 
+    def brush_size(self, event):
+        if (event.delta > 0):
+            self.line_width += 1 if self.line_width + 1 <= 200 else 0
+        if (event.delta < 0):
+            self.line_width -= 1 if self.line_width - 1 >= 1 else 0
+
+    def create_drawing_settings_win(self, win):
+        def change_line_color(*args):
+            a = askcolor(color = self.line_color)
+            if a[1]:
+                self.line_color = a[1]
+                print(f"line color = {self.line_color}")
+
+        drawing_root = Toplevel(win)
+        drawing_root.title("DrawingSettings")
+        drawing_root.geometry(f"+{win.winfo_x()}+{win.winfo_y()}")
+        drawing_root.minsize(260, 90) 
+        drawing_root.attributes('-topmost', 'true')
+
+        draw_color = Button(drawing_root, text = "LineColor", command = change_line_color)
+        line_width_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 200)])
+        line_width_combobox.set(self.line_width)
+
+        draw_color.grid(column = 0, row = 0, sticky = EW)
+        line_width_combobox.grid(column = 0, row = 1)
 
     def enable_drawing(self,win):
         children = win.winfo_children() # [1] == the canvas with the image
-        print(win.attributes())
         if win["cursor"] == "arrow": # not in drawing mode
             win.attributes('-topmost', 'false')
             win.overrideredirect(0)
             children[1].unbind("<B1-Motion>")
+            win.unbind("<MouseWheel>")
+            win.unbind("<Motion>")
             children[1].bind('<B1-Motion>', lambda event, win = children[1] : self.paint(event, win))
             children[1].bind('<ButtonRelease-1>', self.reset)
+            win.bind("<MouseWheel>", self.brush_size)
             win.config(cursor = "pencil")
+            self.create_drawing_settings_win(win)
             
         else:                       # in drawing mode
+            for i in children: 
+                if isinstance(i, Toplevel): i.destroy()
             win.attributes('-topmost', 'true')
             win.overrideredirect(1)
+            win.unbind("<MouseWheel>")
+            win.unbind("<Motion>")
             children[1].unbind("<B1-Motion>")
-            children[1].bind('<ButtonRelease-1>')
+            children[1].unbind('<ButtonRelease-1>')
             children[1].bind("<B1-Motion>", lambda event, win = win : self.Dragging(event, win))
+            win.bind("<MouseWheel>",self.zoomer)
+            win.bind("<Motion>", self.crop)
             win.config(cursor = "arrow")
         
             
@@ -1375,7 +1413,7 @@ class snipping_tool():
                             "delayed_mode" : self.delayed_clip, "multi_clip" : self.multi_clip, "auto_copy_image" : self.auto_copy_image,
                             "auto_hide_clip" : self.auto_hide_clip, "cursor_lines" : self.cursor_lines, "default_alpha" : self.default_alpha,
                             "win32clipboard" : self.win32clipboard, "border_color" : self.border_color, "border_thiccness" : self.border_thiccness,
-                            "hotkeys" : self.hotkey_visual_in_settings}
+                            "line_width" : self.line_width, "line_color" : self.line_color, "hotkeys" : self.hotkey_visual_in_settings}
                 save_file.write(json.dumps(settings,  indent=3))
                 save_file.close()
 
