@@ -1,5 +1,6 @@
 import sys, os, signal, time, threading, PIL.Image, ctypes, datetime, gc, pytesseract, imageio, numpy, io, win32clipboard
 import keyboard as kb
+import json
 from infi.systray import SysTrayIcon 
 from tkinter import *
 from tkinter.filedialog import asksaveasfile, askopenfilename
@@ -23,6 +24,11 @@ success = ctypes.windll.user32.SetProcessDPIAware()
 gc.enable()
 print(*sys.argv) # path name to file (used for the reload script button)
 print(os.getcwd())
+
+def resource_path(relative_path):
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.abspath("."), relative_path)
 
 class PrintLogger(): # create file like object
     DEFAULT_OUT = sys.__stdout__
@@ -215,44 +221,79 @@ class snipping_tool():
         self.old_x = None
         self.old_y = None
 
-        self.zoomcycle = 0          # How far in you are zoomed       
-        self.scale_percent = 0.35   # The size of the zoom box based on the width/height of the clip
-        self.multiplyer = 0.08      # How far zoomed out you start
-        self.cursor_lines = 1       # Is there 2 lines that follow you mouse in clipping mode 
-        self.default_alpha = 0.3
-        self.border_color = "#ff08ff"
-        self.border_thiccness = 1
-        self.auto_copy_image = 0
-        self.auto_hide_clip = 0
-        self.hwnd = root.winfo_id()
+        try:
+            with open(resource_path("settings.json"), "r") as settings_file:
+                settings = json.load(settings_file)
 
-        self.snapshot = 0       # SnapshotMode takes a screenshot of the whole screen and lets you crop it
-        self.delayed_clip = 0   # Delayed Clip will save a screenshot in memory and when you press the hotkey to take another screenshot it will display the img in memory and let you crop it
-        self.multi_clip = 0     # Lets you clip the same window until you cancel the clip windows 
-        self.record_on = False      # Variable that tells the gif mode when to stop taking pictures 
-        self.win32clipboard = 1     # Copy using win32 or prnt screen
+                self.scale_percent = settings["scale_percent"]
+                self.multiplyer = settings["zoom_multiplyer"]
+                self.cursor_lines = settings["cursor_lines"]
+                self.default_alpha = settings["default_alpha"]
+                self.border_color = settings["border_color"]
+                self.border_thiccness = settings["border_thiccness"]
+                self.auto_copy_image = settings["auto_copy_image"]
+                self.auto_hide_clip = settings["auto_hide_clip"]
+                self.snapshot = settings["snapshot_mode"]
+                self.delayed_clip = settings["delayed_mode"]
+                self.multi_clip =  settings["multi_clip"]
+                self.win32clipboard = settings["win32clipboard"]
+                self.hotkey_visual_in_settings = settings["hotkeys"]
+                settings_file.close()
+                print("settings imported successfully")
+
+        except FileNotFoundError:
+            self.scale_percent = 0.35   # The size of the zoom box based on the width/height of the clip
+            self.multiplyer = 0.08      # How far zoomed out you start
+            self.cursor_lines = 1       # Is there 2 lines that follow you mouse in clipping mode 
+            self.default_alpha = 0.3
+            self.border_color = "#ff08ff"
+            self.border_thiccness = 1
+            self.auto_copy_image = 0
+            self.auto_hide_clip = 0
+            self.snapshot = 0       # SnapshotMode takes a screenshot of the whole screen and lets you crop it
+            self.delayed_clip = 0   # Delayed Clip will save a screenshot in memory and when you press the hotkey to take another screenshot it will display the img in memory and let you crop it
+            self.multi_clip = 0     # Lets you clip the same window until you cancel the clip windows 
+            self.win32clipboard = 1     # Copy using win32 or prnt screen
+            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
+                                              "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}       
+            print("no settings file found")
+        except Exception as e:
+            self.scale_percent = 0.35   # The size of the zoom box based on the width/height of the clip
+            self.multiplyer = 0.08      # How far zoomed out you start
+            self.cursor_lines = 1       # Is there 2 lines that follow you mouse in clipping mode 
+            self.default_alpha = 0.3
+            self.border_color = "#ff08ff"
+            self.border_thiccness = 1
+            self.auto_copy_image = 0
+            self.auto_hide_clip = 0
+            self.snapshot = 0       # SnapshotMode takes a screenshot of the whole screen and lets you crop it
+            self.delayed_clip = 0   # Delayed Clip will save a screenshot in memory and when you press the hotkey to take another screenshot it will display the img in memory and let you crop it
+            self.multi_clip = 0     # Lets you clip the same window until you cancel the clip windows 
+            self.win32clipboard = 1     # Copy using win32 or prnt screen
+            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
+                                              "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
+            print("there was an error importing the settings \n{}".format(e))
         
-        
+        self.zoomcycle = 0          # How far in you are zoomed
+        self.hwnd = root.winfo_id()
+        self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
+
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
         self.lines_list = {}
         self.gif = []               # Keep all the pictures taken in gif mode
         self.threads = []           # Keep track of used threads to join back later
         self.gif_canvas = []     # Keep track of gif screens to disable binds
-
-        self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
-                                          "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
+        
         print("snipping tool started")
-
-
 
         #***************** Hide root window *************. 
         root.withdraw()
         root.attributes('-alpha', .0)
         root.attributes('-topmost', 'true')
-   
+
         # <cmd> == WindowsKey, <alt> == AltKey, <ctrl> == CtrlKey, <shift> = shift
-        self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, ["<cmd>"], "z", self.on_activate_i) #keyboard.GlobalHotKeys({ '<cmd>+z': self.on_activate_i})
-        self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, ["<cmd>"], "c", self.on_activate_gif) #keyboard.GlobalHotKeys({ '<cmd>+c': self.on_activate_gif})
+        self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, self.hotkey_visual_in_settings["current_hotkey_1"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_1_key"], self.on_activate_i) #keyboard.GlobalHotKeys({ '<cmd>+z': self.on_activate_i})
+        self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, self.hotkey_visual_in_settings["current_hotkey_2"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_2_key"], self.on_activate_gif) #keyboard.GlobalHotKeys({ '<cmd>+c': self.on_activate_gif})
 
 
 
@@ -461,7 +502,6 @@ class snipping_tool():
         if self.cursor_lines:
             master_screen.bind("<Motion>", self.lines)
             for x, i in self.lines_list.items():
-                print(x)
                 if i["dims"][2] == monitorobj.name and type(x) == int:
                     self.lines_list[x]["lines"] = [screen.create_line(0,0,1,1,fill=self.border_color), screen.create_line(0,0,1,1,fill=self.border_color)]
                     self.lines_list[screen] = self.lines_list.pop(x)
@@ -865,8 +905,8 @@ class snipping_tool():
             width = int(imgfromfile.width); height = int(imgfromfile.height)
             img = ImageTk.PhotoImage(imgfromfile)
             mons = get_monitors()
-            monx = (mons[0].width//2, mons[1].height//2)
-            x1 = width // 4 if width //4 >= 1 else 5; y1 = height//4 if height//4 >= 1 else 5
+            monx = (mons[0].x, mons[0].y)
+            x1 = 0; y1 = 0
             imgobj = imgfromfile
             date_time = datetime.datetime.now()
             self.save_img_data[str(date_time)] = imgobj
@@ -1264,6 +1304,13 @@ class snipping_tool():
             self.multiplyer = 0.08
             self.snapshot = 0
             self.delayed_clip = 0
+            self.multi_clip = 0
+            self.auto_copy_image = 0
+            self.auto_hide_clip = 0
+            self.zoomcycle = 0
+            self.cursor_lines = 1
+            self.default_alpha = 0.3
+            self.win32clipboard = 1
             self.border_color = "#ff08ff"
             self.border_thiccness = 1
 
@@ -1320,7 +1367,17 @@ class snipping_tool():
                 finally:
                     del image, img
                     gc.collect()
-                
+
+
+        def create_save_file(*args):
+            with open(resource_path("settings.json"), "w") as save_file:
+                settings = {"scale_percent" : self.scale_percent, "zoom_multiplyer" : self.multiplyer, "snapshot_mode" : self.snapshot,
+                            "delayed_mode" : self.delayed_clip, "multi_clip" : self.multi_clip, "auto_copy_image" : self.auto_copy_image,
+                            "auto_hide_clip" : self.auto_hide_clip, "cursor_lines" : self.cursor_lines, "default_alpha" : self.default_alpha,
+                            "win32clipboard" : self.win32clipboard, "border_color" : self.border_color, "border_thiccness" : self.border_thiccness,
+                            "hotkeys" : self.hotkey_visual_in_settings}
+                save_file.write(json.dumps(settings,  indent=3))
+                save_file.close()
 
 
 
@@ -1338,6 +1395,7 @@ class snipping_tool():
         open_image_button = Button(settings_window_root, text = "OpenImage", command = call_open_img)
         auto_copy_clip_button = Button(settings_window_root, text = f"AutoCopyClip {self.auto_copy_image}", command = call_toggle_auto_copy)
         auto_hide_clip_button = Button(settings_window_root, text = f"AutoHideClip {self.auto_hide_clip}", command = call_toggle_auto_hide)
+        create_save_file_button = Button(settings_window_root, text = "Create Save", command = create_save_file)
 
         save_changes.grid(column = 0, row = 6)
         reset_changes.grid(column = 1, row = 6)
@@ -1347,6 +1405,7 @@ class snipping_tool():
         open_image_button.grid(column = 4, row = 3)
         auto_copy_clip_button.grid(column = 2, row = 4)
         auto_hide_clip_button.grid(column = 3, row = 4)
+        create_save_file_button.grid(column = 4, row = 6)
 
         auto_copy_clip_button_tooltip = CreateToolTip(auto_copy_clip_button, "Automatically copies the clip to your clipboard")
         auto_hide_clip_button_tooltip = CreateToolTip(auto_hide_clip_button, "Automatically hides the clip in your task bar to keep it out of the way")

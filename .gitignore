@@ -341,3 +341,4 @@ healthchecksdb
 /build/ScreenClippingToolMaster
 /dist
 /ScreenClippingToolMaster.spec
+/settings.json
