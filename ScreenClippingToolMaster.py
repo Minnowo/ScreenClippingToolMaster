@@ -834,7 +834,7 @@ class snipping_tool():
         if self.old_x and self.old_y:
             win.create_line(self.old_x, self.old_y, event.x, event.y,
                                width=self.line_width, fill=self.line_color,
-                               capstyle=ROUND, smooth=TRUE, splinesteps=36)
+                               capstyle=ROUND, smooth=TRUE, splinesteps=36, tags = "<drawnlines>")
         self.old_x = event.x
         self.old_y = event.y
 
@@ -854,6 +854,18 @@ class snipping_tool():
                 self.line_color = a[1]
                 print(f"line color = {self.line_color}")
 
+        def rebind(*args):
+            children = win.winfo_children()
+            children[1].delete("<drawnlines>")
+        def setlinewidth(event):
+            try:
+                int(event.widget.get())
+                self.line_width = int(event.widget.get())
+            except:
+                line_width_combobox.set(self.line_width)
+        def updatre(*args):
+            pass
+
         drawing_root = Toplevel(win)
         drawing_root.title("DrawingSettings")
         drawing_root.geometry(f"+{win.winfo_x()}+{win.winfo_y()}")
@@ -861,11 +873,18 @@ class snipping_tool():
         drawing_root.attributes('-topmost', 'true')
 
         draw_color = Button(drawing_root, text = "LineColor", command = change_line_color)
+        clear = Button(drawing_root, text = "Clear", command = rebind)
         line_width_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 200)])
         line_width_combobox.set(self.line_width)
+        line_thickness_label = Label(drawing_root, text =  "Line Thickness")
 
-        draw_color.grid(column = 0, row = 0, sticky = EW)
-        line_width_combobox.grid(column = 0, row = 1)
+        draw_color.grid(column = 0, row = 0, sticky = EW, columnspan = 2)
+        clear.grid(column = 0, row = 1, sticky = EW, columnspan = 2)
+        line_thickness_label.grid(column = 0, row = 3, pady = 2)
+        line_width_combobox.grid(column = 1, row = 3)
+
+        line_width_combobox.bind("<FocusOut>", setlinewidth)
+        line_width_combobox.bind("<MouseWheel>", setlinewidth)
 
     def enable_drawing(self,win):
         children = win.winfo_children() # [1] == the canvas with the image
@@ -884,6 +903,7 @@ class snipping_tool():
         else:                       # in drawing mode
             for i in children: 
                 if isinstance(i, Toplevel): i.destroy()
+                #if isinstance(i, Canvas): print(i.find_withtag("current"))
             win.attributes('-topmost', 'true')
             win.overrideredirect(1)
             win.unbind("<MouseWheel>")
