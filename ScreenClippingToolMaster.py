@@ -14,7 +14,6 @@ from desktopmagic.screengrab_win32 import getDisplayRects, saveScreenToBmp, save
 from pynput import keyboard
 
 
-
 #***************** Set process DPI aware for all monitors *************. 
 awareness = ctypes.c_int()
 errorCode = ctypes.windll.shcore.GetProcessDpiAwareness(0, ctypes.byref(awareness))
@@ -29,6 +28,7 @@ def resource_path(relative_path):
         if hasattr(sys, '_MEIPASS'):
             return os.path.join(sys._MEIPASS, relative_path)
         return os.path.join(os.path.abspath("."), relative_path)
+
 
 class PrintLogger(): # create file like object
     DEFAULT_OUT = sys.__stdout__
@@ -221,8 +221,8 @@ class snipping_tool():
         self.old_x = None
         self.old_y = None
 
-        try:
-            with open(resource_path("settings.json"), "r") as settings_file:
+        try:           
+            with open("settings.json", "r") as settings_file:
                 settings = json.load(settings_file)
 
                 self.scale_percent = settings["scale_percent"]
@@ -242,7 +242,7 @@ class snipping_tool():
                 self.line_color = settings["line_color"]
                 settings_file.close()
                 print("settings imported successfully")
-
+                    
         except FileNotFoundError:
             self.scale_percent = 0.35   # The size of the zoom box based on the width/height of the clip
             self.multiplyer = 0.08      # How far zoomed out you start
@@ -820,7 +820,7 @@ class snipping_tool():
         self.zoomcycle = 0
         self.zoomer(event = win, fake_call = 1)
         try:
-            pytesseract.pytesseract.tesseract_cmd = '{}\\tess_folder\\tesseract.exe'.format(os.getcwd())
+            pytesseract.pytesseract.tesseract_cmd = resource_path("tesseract.exe")
             image_text = pytesseract.image_to_string(self.save_img_data[win.title()], lang='eng', config= "--psm 1")
             root.clipboard_clear()
             root.clipboard_append(image_text)
@@ -1428,7 +1428,7 @@ class snipping_tool():
 
 
         def create_save_file(*args):
-            with open(resource_path("settings.json"), "w") as save_file:
+            with open("settings.json", "w") as save_file:
                 settings = {"scale_percent" : self.scale_percent, "zoom_multiplyer" : self.multiplyer, "snapshot_mode" : self.snapshot,
                             "delayed_mode" : self.delayed_clip, "multi_clip" : self.multi_clip, "auto_copy_image" : self.auto_copy_image,
                             "auto_hide_clip" : self.auto_hide_clip, "cursor_lines" : self.cursor_lines, "default_alpha" : self.default_alpha,
