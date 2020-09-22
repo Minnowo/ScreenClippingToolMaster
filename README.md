@@ -18,9 +18,6 @@ System Tray:
 ZoomIn/ZoomOut:  
 -- Use the scroll wheel to zoom in/out on the clip 
 
-AHK Hotkeys:  
--- Has the ability to create autohotkey hotkeys that execute AHK code upon press while also activating the clip/gif  
-
 Copy/Save:  
 -- Use Ctrl + S to prompt a save window, can save the clip as Png, Jpg, Tiff, ect  
 -- Use Ctrl + C to copy the clip to clipboard, using either win32 clipboard, or print screen  
