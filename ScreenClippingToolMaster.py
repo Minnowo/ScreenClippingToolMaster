@@ -29,6 +29,12 @@ def resource_path(relative_path):
             return os.path.join(sys._MEIPASS, relative_path)
         return os.path.join(os.path.abspath("."), relative_path)
 
+def get_complementary(color):
+    color = color[1:]
+    color = int(color, 16)
+    comp_color = 0xFFFFFF ^ color
+    comp_color = "#%06X" % comp_color
+    return comp_color
 
 class PrintLogger(): # create file like object
     DEFAULT_OUT = sys.__stdout__
@@ -220,6 +226,7 @@ class snipping_tool():
         self.img = None             # Temporary image that is shown when you zoom in
         self.old_x = None
         self.old_y = None
+        self.mouse_rect = None
 
         try:           
             with open("settings.json", "r") as settings_file:
@@ -831,6 +838,8 @@ class snipping_tool():
 
 
     def paint(self, event, win):
+        self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
+        win.tag_raise("mouse_cirlce")
         if self.old_x and self.old_y:
             win.create_line(self.old_x, self.old_y, event.x, event.y,
                                width=self.line_width, fill=self.line_color,
@@ -842,6 +851,7 @@ class snipping_tool():
         self.old_x, self.old_y = None, None
 
     def brush_size(self, event):
+        self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
         if (event.delta > 0):
             self.line_width += 1 if self.line_width + 1 <= 200 else 0
         if (event.delta < 0):
@@ -886,18 +896,40 @@ class snipping_tool():
         line_width_combobox.bind("<FocusOut>", setlinewidth)
         line_width_combobox.bind("<MouseWheel>", setlinewidth)
 
+    def adjust_mouse_rect(self, x, y, width, canvas, rect):
+        x1 = x + width
+        y1 = y + width
+        x = x - width
+        y = y - width
+        canvas.coords(rect, x, y, x1, y1)
+        #canvas.itemconfig(rect, outline='red')
+
+    def follow_mouse(self, event):
+            self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
+
     def enable_drawing(self,win):
+        def change_rect_color(event):
+            event.widget.itemconfig(self.mouse_rect, outline= get_complementary(self.line_color))
+
         children = win.winfo_children() # [1] == the canvas with the image
         if win["cursor"] == "arrow": # not in drawing mode
+            self.mouse_rect = children[1].create_rectangle(0, 0, 0, 0,outline = get_complementary(self.line_color),tag = "mouse_cirlce")
+
             win.attributes('-topmost', 'false')
             win.overrideredirect(0)
+
             children[1].unbind("<B1-Motion>")
             win.unbind("<MouseWheel>")
             win.unbind("<Motion>")
+            children[1].unbind("<Button-1>")
+
+            children[1].bind("<Button-1>", change_rect_color)
             children[1].bind('<B1-Motion>', lambda event, win = children[1] : self.paint(event, win))
             children[1].bind('<ButtonRelease-1>', self.reset)
+            children[1].bind("<Motion>", self.follow_mouse)
             win.bind("<MouseWheel>", self.brush_size)
             win.config(cursor = "pencil")
+
             self.create_drawing_settings_win(win)
             
         else:                       # in drawing mode
@@ -906,10 +938,12 @@ class snipping_tool():
                 #if isinstance(i, Canvas): print(i.find_withtag("current"))
             win.attributes('-topmost', 'true')
             win.overrideredirect(1)
+
             win.unbind("<MouseWheel>")
             win.unbind("<Motion>")
             children[1].unbind("<B1-Motion>")
             children[1].unbind('<ButtonRelease-1>')
+
             children[1].bind("<B1-Motion>", lambda event, win = win : self.Dragging(event, win))
             win.bind("<MouseWheel>",self.zoomer)
             win.bind("<Motion>", self.crop)
