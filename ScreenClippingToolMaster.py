@@ -290,6 +290,7 @@ class snipping_tool():
         self.zoomcycle = 0          # How far in you are zoomed
         self.hwnd = root.winfo_id()
         self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
+        self.draw = 1
 
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
         self.lines_list = {}
@@ -766,7 +767,7 @@ class snipping_tool():
     #***************** Remove the border and send Alt+Print screen to copy the window *************. 
     @cooldown(0.7)
     def copy(self, event, win, force_win32 = False):     # On Ctrl+C remove the border using geometry and send Alt+PrntScreen to copy clip
-        if (self.win32clipboard or force_win32) and win["cursor"] != "pencil":
+        if (self.win32clipboard or force_win32) and win["cursor"] != "left_ptr":
             output = io.BytesIO()
             self.save_img_data[win.title()].convert("RGB").save(output, "BMP")
             data = output.getvalue()[14:]
@@ -777,6 +778,9 @@ class snipping_tool():
             win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
             win32clipboard.CloseClipboard()
         else:
+            if win["cursor"] == "left_ptr":
+                children = win.winfo_children()
+                children[1].itemconfig("mouse_cirlce", state = "hidden")
 
             kb.send("Alt+print screen") # Only copies the image at the end of function so below must use something non blocking, but still need a small delay
 
@@ -839,11 +843,17 @@ class snipping_tool():
 
     def paint(self, event, win):
         self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
+        if self.draw:
+            if self.old_x and self.old_y:
+                win.create_line(self.old_x, self.old_y, event.x, event.y, width=self.line_width, fill=self.line_color, capstyle=ROUND, smooth=TRUE, splinesteps=36, tags = "<drawnlines>")
+        else:
+            coords = win.coords("mouse_cirlce")
+            result = win.find_overlapping(coords[0], coords[1], coords[2], coords[3])
+            for i in result:
+                if  str(win.itemcget(i, "tags")).find("<drawnlines>") != -1:
+                    win.delete(i)
+
         win.tag_raise("mouse_cirlce")
-        if self.old_x and self.old_y:
-            win.create_line(self.old_x, self.old_y, event.x, event.y,
-                               width=self.line_width, fill=self.line_color,
-                               capstyle=ROUND, smooth=TRUE, splinesteps=36, tags = "<drawnlines>")
         self.old_x = event.x
         self.old_y = event.y
 
@@ -864,17 +874,26 @@ class snipping_tool():
                 self.line_color = a[1]
                 print(f"line color = {self.line_color}")
 
-        def rebind(*args):
+        def clear(*args):
             children = win.winfo_children()
             children[1].delete("<drawnlines>")
+
         def setlinewidth(event):
             try:
                 int(event.widget.get())
                 self.line_width = int(event.widget.get())
             except:
                 line_width_combobox.set(self.line_width)
-        def updatre(*args):
-            pass
+
+        def enable_draw(*args):
+            self.draw = 1
+            paint_button.config(relief= SUNKEN)
+            erase_button.config(relief = RAISED)
+
+        def enable_erase(*args):
+            self.draw = 0
+            paint_button.config(relief= RAISED)
+            erase_button.config(relief = SUNKEN)
 
         drawing_root = Toplevel(win)
         drawing_root.title("DrawingSettings")
@@ -883,18 +902,27 @@ class snipping_tool():
         drawing_root.attributes('-topmost', 'true')
 
         draw_color = Button(drawing_root, text = "LineColor", command = change_line_color)
-        clear = Button(drawing_root, text = "Clear", command = rebind)
+        clear = Button(drawing_root, text = "Clear", command = clear)
+        paint_button = Button(drawing_root, text = "Draw", command = enable_draw)
+        erase_button = Button(drawing_root, text = "Erase", command = enable_erase)
         line_width_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 200)])
         line_width_combobox.set(self.line_width)
         line_thickness_label = Label(drawing_root, text =  "Line Thickness")
 
-        draw_color.grid(column = 0, row = 0, sticky = EW, columnspan = 2)
+        draw_color.grid(column = 0, row = 0, sticky = EW)
         clear.grid(column = 0, row = 1, sticky = EW, columnspan = 2)
         line_thickness_label.grid(column = 0, row = 3, pady = 2)
         line_width_combobox.grid(column = 1, row = 3)
+        paint_button.grid(column = 0, row = 4)
+        erase_button.grid(column = 1, row = 4)
 
         line_width_combobox.bind("<FocusOut>", setlinewidth)
         line_width_combobox.bind("<MouseWheel>", setlinewidth)
+
+        if self.draw:
+            enable_draw()
+        else:
+            enable_erase()
 
     def adjust_mouse_rect(self, x, y, width, canvas, rect):
         x1 = x + width
@@ -902,6 +930,8 @@ class snipping_tool():
         x = x - width
         y = y - width
         canvas.coords(rect, x, y, x1, y1)
+        if canvas.itemcget(rect, "state") == "hidden":
+            canvas.itemconfig("mouse_cirlce", state = "normal")
         #canvas.itemconfig(rect, outline='red')
 
     def follow_mouse(self, event):
@@ -910,6 +940,7 @@ class snipping_tool():
     def enable_drawing(self,win):
         def change_rect_color(event):
             event.widget.itemconfig(self.mouse_rect, outline= get_complementary(self.line_color))
+            event.widget.focus_set()
 
         children = win.winfo_children() # [1] == the canvas with the image
         if win["cursor"] == "arrow": # not in drawing mode
@@ -928,7 +959,7 @@ class snipping_tool():
             children[1].bind('<ButtonRelease-1>', self.reset)
             children[1].bind("<Motion>", self.follow_mouse)
             win.bind("<MouseWheel>", self.brush_size)
-            win.config(cursor = "pencil")
+            win.config(cursor = "left_ptr")
 
             self.create_drawing_settings_win(win)
             
