@@ -884,7 +884,12 @@ class snipping_tool():
 
 
 
-    def create_drawing_settings_win(self, win):
+    def create_drawing_settings_win(self, win, startx = None, starty = None):
+        for widget in root.winfo_children():
+            if isinstance(widget, Toplevel):
+                if str(widget.title()).find("DrawingSettings") != -1:
+                    widget.destroy()
+
         def change_line_color():
             a = askcolor(color = self.line_color)
             if a[1]:
@@ -915,7 +920,7 @@ class snipping_tool():
 
         drawing_root = Toplevel(win)
         drawing_root.title("DrawingSettings")
-        drawing_root.geometry(f"+{win.winfo_x()}+{win.winfo_y()}")
+        if startx and starty: drawing_root.geometry(f"+{int(startx)}+{int(starty)}")
         drawing_root.minsize(260, 90) 
         drawing_root.attributes('-topmost', 'true')
 
@@ -989,11 +994,13 @@ class snipping_tool():
             win.bind("<MouseWheel>", self.brush_size)
             win.config(cursor = "left_ptr")
 
-            self.create_drawing_settings_win(win)
+            self.create_drawing_settings_win(root, win.winfo_x(), win.winfo_y())
             
         else:                       # in drawing mode
-            for i in children: 
-                if isinstance(i, Toplevel): i.destroy()
+            for widget in root.winfo_children():
+                if isinstance(widget, Toplevel):
+                    if str(widget.title()).find("DrawingSettings") != -1:
+                        widget.destroy()
 
             children[1].delete("mouse_cirlce")
             win.attributes('-topmost', 'true')
@@ -1095,6 +1102,7 @@ class snipping_tool():
             right_click_menu.add_command(label ="BringAllFront", command = lambda :  self.bringallfront())
             right_click_menu.add_separator()
             right_click_menu.add_command(label ="Settings", command = lambda :  self.settings_window())
+            right_click_menu.add_command(label ="DrawingSettings", command = lambda :  self.create_drawing_settings_win(root, (x1 + monx[0]), (y1 + monx[1])))
 
             label1 = Canvas(display_screen,  bg = self.border_color, borderwidth = self.border_thiccness, highlightthickness=0)#, width = width, height = height) # border color
             label1.pack(expand = True, fill = BOTH)
@@ -1301,9 +1309,11 @@ class snipping_tool():
 
         for widget in root.winfo_children():
             if isinstance(widget, Toplevel):
-                if str(widget.title()).find("Settings") != -1:
+                tit = str(widget.title())
+                if tit.find("Settings") != -1 or tit.find("DrawingSettings") != -1:
                     widget.destroy()
 
+        
 
 
         def save_settings(*args):
@@ -1662,7 +1672,7 @@ class snipping_tool():
         yloc = (root.winfo_screenheight() // 2) - (settings_window_root.winfo_height() // 2)
         print(xloc, yloc)
         settings_window_root.geometry(f"+{xloc}+{yloc}")
-
+        self.create_drawing_settings_win(root, xloc, yloc)
         
 
         zoom_percent_Combobox.bind("<KeyRelease>", callbc)
