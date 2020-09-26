@@ -247,7 +247,8 @@ class snipping_tool():
                 self.hotkey_visual_in_settings = settings["hotkeys"]
                 self.line_width = settings["line_width"]
                 self.line_color = settings["line_color"]
-                settings_file.close()
+                self.brush_scale_factor = settings["brush_scale_factor"]
+               # settings_file.close()
                 print("settings imported successfully")
                     
         except FileNotFoundError:
@@ -265,6 +266,7 @@ class snipping_tool():
             self.win32clipboard = 1     # Copy using win32 or prnt screen
             self.line_width = 5
             self.line_color = "#ff08ff"
+            self.brush_scale_factor = 10
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                               "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}       
             print("no settings file found")
@@ -283,10 +285,12 @@ class snipping_tool():
             self.win32clipboard = 1     # Copy using win32 or prnt screen
             self.line_width = 5
             self.line_color = "#ff08ff"
+            self.brush_scale_factor = 10
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                               "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
             print("there was an error importing the settings \n{}".format(e))
-        
+        finally:
+            settings_file.close()
         self.zoomcycle = 0          # How far in you are zoomed
         self.hwnd = root.winfo_id()
         self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
@@ -297,6 +301,7 @@ class snipping_tool():
         self.gif = []               # Keep all the pictures taken in gif mode
         self.threads = []           # Keep track of used threads to join back later
         self.gif_canvas = []     # Keep track of gif screens to disable binds
+        self.drawing_combo_box = []
         
         print("snipping tool started")
 
@@ -861,14 +866,26 @@ class snipping_tool():
         self.old_x, self.old_y = None, None
 
     def brush_size(self, event):
-        self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
         if (event.delta > 0):
-            self.line_width += 1 if self.line_width + 1 <= 200 else 0
+            self.line_width += self.brush_scale_factor if self.line_width + self.brush_scale_factor <= 200 else 0
         if (event.delta < 0):
-            self.line_width -= 1 if self.line_width - 1 >= 1 else 0
+            self.line_width -= self.brush_scale_factor if self.line_width - self.brush_scale_factor >= 1 else 0
+
+        self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
+
+        if len(self.drawing_combo_box) > 0:
+            for i in self.drawing_combo_box:
+                try:
+                    i.set(self.line_width)
+                except:
+                    self.drawing_combo_box.remove(i)
+
+    
+
+
 
     def create_drawing_settings_win(self, win):
-        def change_line_color(*args):
+        def change_line_color():
             a = askcolor(color = self.line_color)
             if a[1]:
                 self.line_color = a[1]
@@ -877,13 +894,6 @@ class snipping_tool():
         def clear(*args):
             children = win.winfo_children()
             children[1].delete("<drawnlines>")
-
-        def setlinewidth(event):
-            try:
-                int(event.widget.get())
-                self.line_width = int(event.widget.get())
-            except:
-                line_width_combobox.set(self.line_width)
 
         def enable_draw(*args):
             self.draw = 1
@@ -895,6 +905,14 @@ class snipping_tool():
             paint_button.config(relief= RAISED)
             erase_button.config(relief = SUNKEN)
 
+        def setlinewidth(event):
+            self.line_width = int(event.widget.get())
+
+
+        def setscale(event):
+            self.brush_scale_factor = int(event.widget.get())
+
+
         drawing_root = Toplevel(win)
         drawing_root.title("DrawingSettings")
         drawing_root.geometry(f"+{win.winfo_x()}+{win.winfo_y()}")
@@ -905,19 +923,29 @@ class snipping_tool():
         clear = Button(drawing_root, text = "Clear", command = clear)
         paint_button = Button(drawing_root, text = "Draw", command = enable_draw)
         erase_button = Button(drawing_root, text = "Erase", command = enable_erase)
-        line_width_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 200)])
+
+        line_width_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 201)],  state='readonly')
+        self.drawing_combo_box.append(line_width_combobox)
         line_width_combobox.set(self.line_width)
+
+        zoom_scale_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 21)],  state='readonly')
+        zoom_scale_combobox.set(self.brush_scale_factor)
+
         line_thickness_label = Label(drawing_root, text =  "Line Thickness")
+        zoom_scale_label = Label(drawing_root, text =  "Zoom Scale Factor")
 
         draw_color.grid(column = 0, row = 0, sticky = EW)
         clear.grid(column = 0, row = 1, sticky = EW, columnspan = 2)
         line_thickness_label.grid(column = 0, row = 3, pady = 2)
+        zoom_scale_label.grid(column = 0, row = 4, pady = 2)
         line_width_combobox.grid(column = 1, row = 3)
-        paint_button.grid(column = 0, row = 4)
-        erase_button.grid(column = 1, row = 4)
+        zoom_scale_combobox.grid(column = 1, row = 4)
 
-        line_width_combobox.bind("<FocusOut>", setlinewidth)
-        line_width_combobox.bind("<MouseWheel>", setlinewidth)
+        paint_button.grid(column = 0, row = 5)
+        erase_button.grid(column = 1, row = 5)
+
+        line_width_combobox.bind("<<ComboboxSelected>>", setlinewidth)
+        zoom_scale_combobox.bind("<<ComboboxSelected>>", setscale)
 
         if self.draw:
             enable_draw()
@@ -1504,7 +1532,7 @@ class snipping_tool():
                             "delayed_mode" : self.delayed_clip, "multi_clip" : self.multi_clip, "auto_copy_image" : self.auto_copy_image,
                             "auto_hide_clip" : self.auto_hide_clip, "cursor_lines" : self.cursor_lines, "default_alpha" : self.default_alpha,
                             "win32clipboard" : self.win32clipboard, "border_color" : self.border_color, "border_thiccness" : self.border_thiccness,
-                            "line_width" : self.line_width, "line_color" : self.line_color, "hotkeys" : self.hotkey_visual_in_settings}
+                            "line_width" : self.line_width, "line_color" : self.line_color, "brush_scale_factor" : self.brush_scale_factor, "hotkeys" : self.hotkey_visual_in_settings}
                 save_file.write(json.dumps(settings,  indent=3))
                 save_file.close()
 
