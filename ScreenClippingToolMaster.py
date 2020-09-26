@@ -966,7 +966,8 @@ class snipping_tool():
         else:                       # in drawing mode
             for i in children: 
                 if isinstance(i, Toplevel): i.destroy()
-                #if isinstance(i, Canvas): print(i.find_withtag("current"))
+
+            children[1].delete("mouse_cirlce")
             win.attributes('-topmost', 'true')
             win.overrideredirect(1)
 
@@ -974,7 +975,9 @@ class snipping_tool():
             win.unbind("<Motion>")
             children[1].unbind("<B1-Motion>")
             children[1].unbind('<ButtonRelease-1>')
+            children[1].unbind("<Button-1>")
 
+            children[1].bind("<Button-1>", lambda event, win = children[1] : self.SaveLastClickPos(event, win))
             children[1].bind("<B1-Motion>", lambda event, win = win : self.Dragging(event, win))
             win.bind("<MouseWheel>",self.zoomer)
             win.bind("<Motion>", self.crop)
@@ -1420,6 +1423,9 @@ class snipping_tool():
 
         def show_console(*args):
             PrintLogger.consolewin(root)
+            print("Created by Minnowo")
+            print("Github: https://github.com/Minnowo")
+            print("Discord: https://discord.gg/qznYCXz")
 
 
         def restore_default(*args):
