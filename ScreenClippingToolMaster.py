@@ -890,6 +890,8 @@ class snipping_tool():
                 if str(widget.title()).find("DrawingSettings") != -1:
                     widget.destroy()
 
+        drawing_root = Toplevel(win)
+
         def change_line_color():
             a = askcolor(color = self.line_color)
             if a[1]:
@@ -897,8 +899,38 @@ class snipping_tool():
                 print(f"line color = {self.line_color}")
 
         def clear(*args):
-            children = win.winfo_children()
-            children[1].delete("<drawnlines>")
+            def update(event, canvas, color):
+                try:
+                    canvas.config(bg = color)
+                except:
+                    event.widget.pack_forget()
+
+            for widget in drawing_root.winfo_children():
+                if isinstance(widget, Toplevel):
+                    if str(widget.title()).find("ClearMenu") != -1:
+                        widget.destroy()
+
+
+            children = [i for i in root.winfo_children() if isinstance(i, Toplevel)]
+            
+            clear_menu = Toplevel(drawing_root)
+            clear_menu.title("ClearMenu")
+            clear_menu.attributes("-topmost", True)
+            clear_menu.lift()
+            clear_menu.resizable(0,0)
+            clear_menu.minsize(260, 20)
+
+            if startx != None and starty != None: 
+                clear_menu.geometry(f"+{startx}+{starty}")
+
+            for i in children:
+                for x in i.winfo_children():
+                    if isinstance(x, Canvas):
+                        #print(x, x["bg"])
+                        button = Button(clear_menu, text = i.title(), command = lambda canvas = x, tag = "<drawnlines>" : canvas.delete(tag))
+                        button.pack()
+                        button.bind("<Enter>", lambda event, canvas = x, color = get_complementary(x["bg"]) : update(event, canvas, color))
+                        button.bind("<Leave>", lambda event, canvas = x, color = x["bg"] : update(event, canvas, color))
 
         def enable_draw(*args):
             self.draw = 1
@@ -918,9 +950,12 @@ class snipping_tool():
             self.brush_scale_factor = int(event.widget.get())
 
 
-        drawing_root = Toplevel(win)
+        #drawing_root = Toplevel(win)
         drawing_root.title("DrawingSettings")
-        if startx and starty: drawing_root.geometry(f"+{int(startx)}+{int(starty)}")
+        
+        if startx != None and starty != None : 
+            drawing_root.geometry(f"+{int(startx)}+{int(starty)}")
+
         drawing_root.minsize(260, 90) 
         drawing_root.attributes('-topmost', 'true')
 
