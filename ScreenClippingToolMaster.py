@@ -290,7 +290,8 @@ class snipping_tool():
                                               "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
             print("there was an error importing the settings \n{}".format(e))
         finally:
-            settings_file.close()
+            try:settings_file.close()
+            except:pass
         self.zoomcycle = 0          # How far in you are zoomed
         self.hwnd = root.winfo_id()
         self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
@@ -1707,7 +1708,7 @@ class snipping_tool():
         yloc = (root.winfo_screenheight() // 2) - (settings_window_root.winfo_height() // 2)
         print(xloc, yloc)
         settings_window_root.geometry(f"+{xloc}+{yloc}")
-        self.create_drawing_settings_win(root, xloc, yloc)
+        self.create_drawing_settings_win(root, startx = xloc, starty = yloc)
         
 
         zoom_percent_Combobox.bind("<KeyRelease>", callbc)
