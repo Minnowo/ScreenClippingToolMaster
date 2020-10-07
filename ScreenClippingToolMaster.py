@@ -173,7 +173,7 @@ class Global_hotkeys:
     import ctypes
     import pynput.keyboard
     MODIFIER_KEYS_INT = {"<cmd>" : 0x0008,  "<shift>" : 0x0004,    "<alt>" : 0x0001,  "<ctrl>" : 0x0002, "" : 0x0000}
-    PYNPUT_TO_VK = {'<scroll_lock>' : 0x91,'<num_lock>' : 0x90,'<menu>' : 0xa5,'<page_up>' : 0x21,'<page_down>' : 0x22,'0' : 0x30,'1' : 0x31,'2' : 0x32,'3' : 0x33,'4' : 0x34,'5' : 0x35,'6' : 0x36,'7' : 0x37,'8' : 0x38,'9' : 0x39,'a' : 0x41,'b' : 0x42,'c' : 0x43,'d' : 0x44,'e' : 0x45,'f' : 0x46,'g' : 0x47,'h' : 0x48,'i' : 0x49,'j' : 0x4a,'k' : 0x4b,'l' : 0x4c,'m' : 0x4d,'n' : 0x4e,'o' : 0x4f,'p' : 0x50,'q' : 0x51,'r' : 0x52,'s' : 0x53,'t' : 0x54,'u' : 0x55,'v' : 0x56,'w' : 0x57,'x' : 0x58,'y' : 0x59,'z' : 0x5a,'<backspace>' : 0x8,'<tab>' : 0x9,'<clear>' : 0xc,'<enter>' : 0xd,'<shift>' : 0x10,'<control>' : 0x11,'<alt>' : 0x12,'<pause>' : 0x13,'<caps_lock>' : 0x14,'<esc>' : 0x1b,'<space>' : 0x20,'<end>' : 0x23,'<home>' : 0x24,'<left>' : 0x25,'<up>' : 0x26,'<right>' : 0x27,'<down>' : 0x28,'<select>' : 0x29,'<print>' : 0x2a,'<execute>' : 0x2b,'<print_screen>' : 0x2c,'<insert>' : 0x2d,'<delete>' : 0x2e,'<help>' : 0x2f,'<f1>' : 0x70,'<f2>' : 0x71,'<f3>' : 0x72,'<f4>' : 0x73,'<f5>' : 0x74,'<f6>' : 0x75,'<f7>' : 0x76,'<f8>' : 0x77,'<f9>' : 0x78,'<f10>' : 0x79,'<f11>' : 0x7a,'<f12>' : 0x7b,'<f13>' : 0x7c,'<f14>' : 0x7d,'<f15>' : 0x7e,'<f16>' : 0x7f,'<f17>' : 0x80,'<f18>' : 0x81,'<f19>' : 0x82,'<f20>' : 0x83}
+    PYNPUT_TO_VK = {'0' : 0x30,'1' : 0x31,'2' : 0x32,'3' : 0x33,'4' : 0x34,'5' : 0x35,'6' : 0x36,'7' : 0x37,'8' : 0x38,'9' : 0x39,'a' : 0x41,'b' : 0x42,'c' : 0x43,'d' : 0x44,'e' : 0x45,'f' : 0x46,'g' : 0x47,'h' : 0x48,'i' : 0x49,'j' : 0x4a,'k' : 0x4b,'l' : 0x4c,'m' : 0x4d,'n' : 0x4e,'o' : 0x4f,'p' : 0x50,'q' : 0x51,'r' : 0x52,'s' : 0x53,'t' : 0x54,'u' : 0x55,'v' : 0x56,'w' : 0x57,'x' : 0x58,'y' : 0x59,'z' : 0x5a, '<scroll_lock>' : 0x91,'<num_lock>' : 0x90,'<menu>' : 0xa5,'<page_up>' : 0x21,'<page_down>' : 0x22, '<backspace>' : 0x8,'<tab>' : 0x9,'<clear>' : 0xc,'<enter>' : 0xd,'<shift>' : 0x10,'<control>' : 0x11,'<alt>' : 0x12,'<pause>' : 0x13,'<caps_lock>' : 0x14,'<esc>' : 0x1b,'<space>' : 0x20,'<end>' : 0x23,'<home>' : 0x24,'<left>' : 0x25,'<up>' : 0x26,'<right>' : 0x27,'<down>' : 0x28,'<select>' : 0x29,'<print>' : 0x2a,'<execute>' : 0x2b,'<print_screen>' : 0x2c,'<insert>' : 0x2d,'<delete>' : 0x2e,'<help>' : 0x2f,'<f1>' : 0x70,'<f2>' : 0x71,'<f3>' : 0x72,'<f4>' : 0x73,'<f5>' : 0x74,'<f6>' : 0x75,'<f7>' : 0x76,'<f8>' : 0x77,'<f9>' : 0x78,'<f10>' : 0x79,'<f11>' : 0x7a,'<f12>' : 0x7b,'<f13>' : 0x7c,'<f14>' : 0x7d,'<f15>' : 0x7e,'<f16>' : 0x7f,'<f17>' : 0x80,'<f18>' : 0x81,'<f19>' : 0x82,'<f20>' : 0x83}
     REGISTER_HOTKEY_WINDLL = ctypes.windll.user32.RegisterHotKey
     UNREGISTER_HOTKEY_WINDLL = ctypes.windll.user32.UnregisterHotKey
     REGISTER_HOTKEY_PYNPUT =  pynput.keyboard.GlobalHotKeys
@@ -292,6 +292,7 @@ class snipping_tool():
         finally:
             try:settings_file.close()
             except:pass
+
         self.zoomcycle = 0          # How far in you are zoomed
         self.hwnd = root.winfo_id()
         self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
@@ -439,6 +440,7 @@ class snipping_tool():
             master_screen.attributes("-topmost", True) 
             
             screen = Canvas(master_screen, bg="grey11", highlightthickness = 0)
+            self.gif_canvas.append(screen) 
             screen.pack(fill=BOTH, expand=YES)
 
             screen.bind("<ButtonRelease-3>", self.OnRightClick)
@@ -446,7 +448,7 @@ class snipping_tool():
             screen.bind("<B1-Motion>", self.OnDrag)
             screen.bind("<ButtonRelease-1>", self.OnReleaseGif)
 
-            self.gif_canvas.append(screen) 
+            
 
             master_screen.lift()
             master_screen.update()
@@ -1343,31 +1345,11 @@ class snipping_tool():
 
     def settings_window(self):
 
-        for widget in root.winfo_children():
-            if isinstance(widget, Toplevel):
-                tit = str(widget.title())
-                if tit.find("Settings") != -1 or tit.find("DrawingSettings") != -1:
-                    widget.destroy()
-
-        
-
-
         def save_settings(*args):
             save_changes.focus()
-            check_float()
             self.scale_percent = float(zoom_percent_Combobox.get())
             self.multiplyer = float(zoom_multiplyer_Combobox.get())
             self.border_thiccness = int(border_thiccness_combobox.get())
-
-            
-
-            if any(i not in ["WindowsKey", "Alt", "Ctrl", "Shift", "None"] for i in [hotkey_1_modifyer_1.get(), hotkey_1_modifyer_2.get(), hotkey_1_modifyer_3.get()]): 
-                messagebox.showerror(title="", message="Hotkey 1 modifier was not any of the values given", parent=root)
-                return
-            if any(i not in ["WindowsKey", "Alt", "Ctrl", "Shift", "None"] for i in [hotkey_2_modifyer_1.get(), hotkey_2_modifyer_2.get(), hotkey_2_modifyer_3.get()]): 
-                messagebox.showerror(title="", message="Hotkey 2 modifier was not any of the values given", parent=root)
-                return
-
 
             correct_modifyers_for_hotkey = {"WindowsKey" : "<cmd>", "Alt" : "<alt>", "Ctrl" : "<ctrl>", "Shift" : "<shift>"}
 
@@ -1389,81 +1371,27 @@ class snipping_tool():
             if final_hotkey1 != self.hotkey_visual_in_settings["current_hotkey_1"]:
                 del hotkey1_formated[-1]
                 try:
-                    Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0]) #keyboard.GlobalHotKeys.stop(self.clip_hotkey)
-                    self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, hotkey1_formated, hotkey1[-1].lower(), self.on_activate_i) #keyboard.GlobalHotKeys({ final_hotkey1 : self.on_activate_i})
-                    #self.clip_hotkey.start()
+                    Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0]) 
+                    self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, hotkey1_formated, hotkey1[-1].lower(), self.on_activate_i) 
                     print(f"New hotkey set for Standard mode, {final_hotkey1}")
                 except Exception as e:print(e)
 
             if final_hotkey2 != self.hotkey_visual_in_settings["current_hotkey_2"]:
                 del hotkey2_formated[-1]
                 try:
-                    Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) #keyboard.GlobalHotKeys.stop(self.gif_hotkey)
-                    self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, hotkey2_formated, hotkey2[-1].lower(), self.on_activate_gif) #keyboard.GlobalHotKeys({ final_hotkey2 : self.on_activate_gif})
-                    #self.gif_hotkey.start()
+                    Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) 
+                    self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, hotkey2_formated, hotkey2[-1].lower(), self.on_activate_gif)
                     print(f"New hotkey set for Gif mode, {final_hotkey2}")
                 except Exception as e:print(e)
 
             
 
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : hotkey_1_modifyer_3.get(), "hotkey_1_key" : hotkey_1_key.get(), "current_hotkey_1" : final_hotkey1,
-                                                  "hotkey_2_modifyer_1" : hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : hotkey_2_modifyer_3.get(), "hotkey_2_key" : hotkey_2_key.get(), "current_hotkey_2" : final_hotkey2}
-           
-
+                                              "hotkey_2_modifyer_1" : hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : hotkey_2_modifyer_3.get(), "hotkey_2_key" : hotkey_2_key.get(), "current_hotkey_2" : final_hotkey2}       
             self.settings_window()
 
 
-        def reset_settings(*args):
-            self.settings_window()
 
-        def callbc(event):
-            if event.char != "":
-                try:
-                    int(event.char)
-                except:
-                    if event.char != ".":
-                        event.widget.set("")
-
-        def force_int(event):
-            if event.char != "":
-                try:
-                    int(event.char)
-                except:
-                    event.widget.set(self.border_thiccness)
-
-        def check_float(event=None):
-            try:
-                numbs = [round(x, 3) for x in numpy.arange(0, 2, 0.01) if x >= 0.03]
-                val = round(float(zoom_percent_Combobox.get()), 3)
-                print(val)
-                if val not in numbs:
-                    val= min(numbs, key=lambda x:abs(x-val))
-                zoom_percent_Combobox.set(val)
-            except:
-                zoom_percent_Combobox.set(self.scale_percent)
-
-        def check_float_zoom_multiplyer_Combobox(event=None):
-            try:
-                numbs = [round(x, 3) for x in numpy.arange(0, 0.2, 0.01) if x >= 0.03]
-                val = round(float(zoom_multiplyer_Combobox.get()), 3)
-                print(val)
-                if val not in numbs:
-                    val= min(numbs, key=lambda x:abs(x-val))
-                zoom_multiplyer_Combobox.set(val)
-            except:
-                zoom_multiplyer_Combobox.set(self.multiplyer)
-
-        def check_modifyer_key(event):
-            print(event.widget.get())
-            if str(event.widget.get()) not in ["WindowsKey", "Alt", "Ctrl", "Shift", "None"]:
-                event.widget.set("None")
-
-        def prevent_multi_keys(event):
-            if event.char != "":
-                event.widget.set(event.char)
-            else:
-                print(event.widget['values'])
-                event.widget.set(event.widget['values'][0])
 
         def change_snapshot(*args):
             self.toggle_snapshot_mode()
@@ -1552,9 +1480,6 @@ class snipping_tool():
                 print(f"clip border color = {self.border_color}")
 
 
-        def call_open_img(*args):
-            root.after(0, open_image)
-
 
         def open_image(*args):
             img = askopenfilename(parent=root)
@@ -1574,15 +1499,20 @@ class snipping_tool():
 
         def create_save_file(*args):
             with open("settings.json", "w") as save_file:
-                settings = {"scale_percent" : self.scale_percent, "zoom_multiplyer" : self.multiplyer, "snapshot_mode" : self.snapshot,
-                            "delayed_mode" : self.delayed_clip, "multi_clip" : self.multi_clip, "auto_copy_image" : self.auto_copy_image,
-                            "auto_hide_clip" : self.auto_hide_clip, "cursor_lines" : self.cursor_lines, "default_alpha" : self.default_alpha,
-                            "win32clipboard" : self.win32clipboard, "border_color" : self.border_color, "border_thiccness" : self.border_thiccness,
-                            "line_width" : self.line_width, "line_color" : self.line_color, "brush_scale_factor" : self.brush_scale_factor, "hotkeys" : self.hotkey_visual_in_settings}
+                settings = {"scale_percent"  : self.scale_percent,  "zoom_multiplyer" : self.multiplyer,   "snapshot_mode"      : self.snapshot,
+                            "delayed_mode"   : self.delayed_clip,   "multi_clip"      : self.multi_clip,   "auto_copy_image"    : self.auto_copy_image,
+                            "auto_hide_clip" : self.auto_hide_clip, "cursor_lines"    : self.cursor_lines, "default_alpha"      : self.default_alpha,
+                            "win32clipboard" : self.win32clipboard, "border_color"    : self.border_color, "border_thiccness"   : self.border_thiccness,
+                            "line_width"     : self.line_width,     "line_color"      : self.line_color,   "brush_scale_factor" : self.brush_scale_factor, 
+                            "hotkeys"        : self.hotkey_visual_in_settings}
                 save_file.write(json.dumps(settings,  indent=3))
                 save_file.close()
 
-
+        for widget in root.winfo_children():
+            if isinstance(widget, Toplevel):
+                tit = str(widget.title())
+                if tit.find("Settings") != -1 or tit.find("DrawingSettings") != -1:
+                    widget.destroy()
 
         settings_window_root = Toplevel(root)
         settings_window_root.title("Settings")
@@ -1590,118 +1520,113 @@ class snipping_tool():
         settings_window_root.lift()
         settings_window_root.resizable(0,0)
         
-        save_changes = Button(settings_window_root, text = "Save Changes", command = save_settings)
-        reset_changes = Button(settings_window_root, text = "Reset Changes", command = reset_settings)
-        restore_deault_button = Button(settings_window_root, text = "Restore Default", command = restore_default)
-        show_console_button = Button(settings_window_root, text = "ShowConsole", command = show_console)
-        choose_border_color = Button(settings_window_root, text = "Border/LineColor", command = change_border)
-        open_image_button = Button(settings_window_root, text = "OpenImage", command = call_open_img)
-        auto_copy_clip_button = Button(settings_window_root, text = f"AutoCopyClip {self.auto_copy_image}", command = call_toggle_auto_copy)
-        auto_hide_clip_button = Button(settings_window_root, text = f"AutoHideClip {self.auto_hide_clip}", command = call_toggle_auto_hide)
-        create_save_file_button = Button(settings_window_root, text = "Create Save", command = create_save_file)
+        #***************** Buttons *************. 
+        save_changes =              Button(settings_window_root, text =  "Save Changes",                        command = save_settings)
+        reset_changes =             Button(settings_window_root, text =  "Reset Changes",                       command = self.settings_window)
+        restore_deault_button =     Button(settings_window_root, text =  "Restore Default",                     command = restore_default)
+        show_console_button =       Button(settings_window_root, text =  "ShowConsole",                         command = show_console)
+        choose_border_color =       Button(settings_window_root, text =  "Border/LineColor",                    command = change_border)
+        open_image_button =         Button(settings_window_root, text =  "OpenImage",                           command = open_image) 
+        auto_copy_clip_button =     Button(settings_window_root, text = f"AutoCopyClip {self.auto_copy_image}", command = call_toggle_auto_copy)
+        auto_hide_clip_button =     Button(settings_window_root, text = f"AutoHideClip {self.auto_hide_clip}",  command = call_toggle_auto_hide)
+        create_save_file_button =   Button(settings_window_root, text =  "Create Save",                         command = create_save_file)
+        snapshot_mode_button =      Button(settings_window_root, text = f"SnapShotMode {self.snapshot}",        command = change_snapshot)
+        delay_clip_mode_button =    Button(settings_window_root, text = f"DelayMode {self.delayed_clip}",       command = change_delay_clip)
+        multi_clip_mode_button =    Button(settings_window_root, text = f"MultiMode {self.multi_clip}",         command = change_multi_mode)
+        cursor_guidelines_button =  Button(settings_window_root, text = f"CursorLines {self.cursor_lines}",     command = change_lines)
+        use_win32_clipboard_copy =  Button(settings_window_root, text = f"Win32clipboard {self.win32clipboard}",command = change_win32_clip)
 
-        save_changes.grid(column = 0, row = 6)
-        reset_changes.grid(column = 1, row = 6)
-        restore_deault_button.grid(column = 2, row = 6)
-        show_console_button.grid(column = 3, row = 6)
-        choose_border_color.grid(column = 4, row = 4)
-        open_image_button.grid(column = 4, row = 3)
-        auto_copy_clip_button.grid(column = 2, row = 4)
-        auto_hide_clip_button.grid(column = 3, row = 4)
-        create_save_file_button.grid(column = 4, row = 6)
+        save_changes.grid               (column = 0, row = 6)
+        reset_changes.grid              (column = 1, row = 6)
+        restore_deault_button.grid      (column = 2, row = 6)
+        show_console_button.grid        (column = 3, row = 6)
+        choose_border_color.grid        (column = 4, row = 4)
+        open_image_button.grid          (column = 4, row = 3)
+        auto_copy_clip_button.grid      (column = 2, row = 4)
+        auto_hide_clip_button.grid      (column = 3, row = 4)
+        create_save_file_button.grid    (column = 4, row = 6)
+        snapshot_mode_button.grid       (column = 0, row = 5, pady = 5)
+        delay_clip_mode_button.grid     (column = 1, row = 5, padx = 6, pady = 5)
+        multi_clip_mode_button.grid     (column = 2, row = 5, padx = 6, pady = 5)
+        cursor_guidelines_button.grid   (column = 3, row = 5, padx = 6, pady = 5)
+        use_win32_clipboard_copy.grid   (column = 4, row = 5, padx = 6, pady = 5)
 
-        auto_copy_clip_button_tooltip = CreateToolTip(auto_copy_clip_button, "Automatically copies the clip to your clipboard")
-        auto_hide_clip_button_tooltip = CreateToolTip(auto_hide_clip_button, "Automatically hides the clip in your task bar to keep it out of the way")
-
-        hotkey_1_label = Label(settings_window_root, text = "Clip Hotkey")
-        hotkey_2_label = Label(settings_window_root, text = "Gif Hotkey")
-
-        border_thiccness_label = Label(settings_window_root, text = "Clip Border Thickness")
-        border_thiccness_label.grid(column = 0, row = 4)
-        border_thiccness_label_tooltip = CreateToolTip(border_thiccness_label, "Thickness of border around clip\nIf the value is not even the border will be slightly off")
-
-        zoom_percent_label = Label(settings_window_root, text = "Zoom Square Size")
-        zoom_multiplyer_label = Label(settings_window_root, text = "Zoom Multiplyer")
-
-        hotkey_1_label.grid(column = 0, row = 1)
-        hotkey_1_label_tooltip = CreateToolTip(hotkey_1_label, "Hotkey to make a clip")
-
-        hotkey_2_label.grid(column = 0, row = 2)
-        hotkey_2_label_tooltip = CreateToolTip(hotkey_2_label, "Hotkey to make a gif")
-
-        zoom_percent_label.grid(column = 0, row = 3)
-        zoom_percent_label_tooltip = CreateToolTip(zoom_percent_label, "Size of zoom box \nLower = Smaller \nHigher = Bigger \nAbove 1.25 can be lagy")
-
-        zoom_multiplyer_label.grid(column = 2, row = 3)
-        zoom_multiplyer_label_tooltip = CreateToolTip(zoom_multiplyer_label, "How far in the zoom starts \nLower = More Zoomed \nHigher = Less Zoomed")
-        #<cmd> == WindowsKey, <alt> == AltKey, <ctrl> == CtrlKey
-        hotkey_1_modifyer_1 = ttk.Combobox(settings_window_root,  values = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"], width=12)
-        hotkey_2_modifyer_1 = ttk.Combobox(settings_window_root,  values = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"], width=12)
-        hotkey_1_modifyer_1.set(self.hotkey_visual_in_settings["hotkey_1_modifyer_1"])
-        hotkey_2_modifyer_1.set(self.hotkey_visual_in_settings["hotkey_2_modifyer_1"])
+        CreateToolTip(snapshot_mode_button,     "Snapshot Mode: \nFreezes your screen, allowing you to crop a current point in time")
+        CreateToolTip(delay_clip_mode_button,   "Delayed Mode: \nTakes a screenshot and holds it in memory, upon the Clip Hotkey again display the screenshot allowing you to crop it")
+        CreateToolTip(multi_clip_mode_button,   "Lets you clip with the same clipping window until you close it with Right Click")
+        CreateToolTip(cursor_guidelines_button, "This toggles the visual pink lines when clipping")
+        CreateToolTip(use_win32_clipboard_copy, "Copy clip using win32clipboard \nThis is more flexable and faster")
+        CreateToolTip(auto_copy_clip_button,    "Automatically copies the clip to your clipboard")
+        CreateToolTip(auto_hide_clip_button,    "Automatically hides the clip in your task bar to keep it out of the way")
 
 
-        hotkey_1_modifyer_2 = ttk.Combobox(settings_window_root,  values = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"], width=12)
-        hotkey_2_modifyer_2 = ttk.Combobox(settings_window_root,  values = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"], width=12)
-        hotkey_1_modifyer_2.set(self.hotkey_visual_in_settings["hotkey_1_modifyer_2"])
-        hotkey_2_modifyer_2.set(self.hotkey_visual_in_settings["hotkey_2_modifyer_2"])
+        #***************** Labels *************. 
+        hotkey_1_label =            Label(settings_window_root, text = "Clip Hotkey")
+        hotkey_2_label =            Label(settings_window_root, text = "Gif Hotkey")
+        border_thiccness_label =    Label(settings_window_root, text = "Clip Border Thickness")
+        zoom_percent_label =        Label(settings_window_root, text = "Zoom Square Size")
+        zoom_multiplyer_label =     Label(settings_window_root, text = "Zoom Multiplyer")
+
+        hotkey_1_label.grid             (column = 0, row = 1)
+        hotkey_2_label.grid             (column = 0, row = 2)
+        border_thiccness_label.grid     (column = 0, row = 4)
+        zoom_percent_label.grid         (column = 0, row = 3)
+        zoom_multiplyer_label.grid      (column = 2, row = 3)
+   
+        CreateToolTip(hotkey_1_label,           "Hotkey to make a clip")
+        CreateToolTip(hotkey_2_label,           "Hotkey to make a gif")
+        CreateToolTip(border_thiccness_label,   "Thickness of border around clip") 
+        CreateToolTip(zoom_percent_label,       "Size of zoom box \nLower = Smaller \nHigher = Bigger \nAbove 1.25 can be lagy")
+        CreateToolTip(zoom_multiplyer_label,    "How far in the zoom starts \nLower = More Zoomed \nHigher = Less Zoomed")
 
 
-        hotkey_1_modifyer_3 = ttk.Combobox(settings_window_root,  values = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"], width=12)
-        hotkey_2_modifyer_3 = ttk.Combobox(settings_window_root,  values = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"], width=12)
-        hotkey_1_modifyer_3.set(self.hotkey_visual_in_settings["hotkey_1_modifyer_3"])
-        hotkey_2_modifyer_3.set(self.hotkey_visual_in_settings["hotkey_2_modifyer_3"])
+        #***************** ComboBox *************. 
+        modifiers = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"]
+        keys = list(Global_hotkeys.PYNPUT_TO_VK.keys())
 
-        hotkey_1_key = ttk.Combobox(settings_window_root,  values = list(Global_hotkeys.PYNPUT_TO_VK.keys()), width=12)
-        hotkey_2_key = ttk.Combobox(settings_window_root,  values = list(Global_hotkeys.PYNPUT_TO_VK.keys()), width=12)
-        hotkey_1_key.set(self.hotkey_visual_in_settings["hotkey_1_key"])
-        hotkey_2_key.set(self.hotkey_visual_in_settings["hotkey_2_key"])
+        hotkey_1_modifyer_1 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
+        hotkey_1_modifyer_2 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
+        hotkey_1_modifyer_3 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
+        hotkey_1_key =          ttk.Combobox(settings_window_root,  values = keys,      width=12,  state='readonly')
 
-        border_thiccness_combobox = ttk.Combobox(settings_window_root, values = [i for i in range(0, 100)], width = 4)
-        border_thiccness_combobox.set(self.border_thiccness)
+        hotkey_2_modifyer_1 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
+        hotkey_2_modifyer_2 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
+        hotkey_2_modifyer_3 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
+        hotkey_2_key =          ttk.Combobox(settings_window_root,  values = keys,      width=12,  state='readonly')
+        
+        border_thiccness_combobox = ttk.Combobox(settings_window_root,  values = [i for i in range(0, 100)],                                        width = 4,  state='readonly')
+        zoom_percent_Combobox =     ttk.Combobox(settings_window_root,  values = [round(x, 3) for x in numpy.arange(0, 2, 0.01) if x >= 0.03],      width=5,  state='readonly')
+        zoom_multiplyer_Combobox =  ttk.Combobox(settings_window_root,  values = [round(x, 3) for x in numpy.arange(0, 0.2, 0.01) if x >= 0.03],    width=5,  state='readonly')
+        
+        hotkey_1_modifyer_1.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_1"])
+        hotkey_1_modifyer_2.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_2"])
+        hotkey_1_modifyer_3.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_3"])
+        hotkey_1_key.set                (self.hotkey_visual_in_settings["hotkey_1_key"])
 
-        zoom_percent_Combobox = ttk.Combobox(settings_window_root,  values = [round(x, 3) for x in numpy.arange(0, 2, 0.01) if x >= 0.03], width=5)
-        zoom_percent_Combobox.set(self.scale_percent)
+        hotkey_2_modifyer_1.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_1"])
+        hotkey_2_modifyer_2.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_2"])        
+        hotkey_2_modifyer_3.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_3"])
+        hotkey_2_key.set                (self.hotkey_visual_in_settings["hotkey_2_key"])
 
-        zoom_multiplyer_Combobox = ttk.Combobox(settings_window_root,  values = [round(x, 3) for x in numpy.arange(0, 0.2, 0.01) if x >= 0.03], width=5)
-        zoom_multiplyer_Combobox.set(self.multiplyer)
+        border_thiccness_combobox.set   (self.border_thiccness)
+        zoom_percent_Combobox.set       (self.scale_percent)
+        zoom_multiplyer_Combobox.set    (self.multiplyer)
 
-        snapshot_mode_button = Button(settings_window_root, text = f"SnapShotMode {self.snapshot}", command = change_snapshot)
-        delay_clip_mode_button = Button(settings_window_root, text = f"DelayMode {self.delayed_clip}", command = change_delay_clip)
-        multi_clip_mode_button = Button(settings_window_root, text = f"MultiMode {self.multi_clip}", command = change_multi_mode)
-        cursor_guidelines_button = Button(settings_window_root, text = f"CursorLines {self.cursor_lines}", command = change_lines)
-        use_win32_clipboard_copy = Button(settings_window_root, text = f"Win32clipboard {self.win32clipboard}", command = change_win32_clip)
+        hotkey_1_modifyer_1.grid        (column = 1, row = 1, pady = 5)
+        hotkey_1_modifyer_2.grid        (column = 2, row = 1, pady = 5, padx = 6)
+        hotkey_1_modifyer_3.grid        (column = 3, row = 1, pady = 5, padx = 6)
+        hotkey_1_key.grid               (column = 4, row = 1, pady = 5)
 
-        hotkey_1_modifyer_1.grid(column = 1, row = 1, pady = 5)
-        hotkey_2_modifyer_1.grid(column = 1, row = 2, pady = 5)
+        hotkey_2_modifyer_1.grid        (column = 1, row = 2, pady = 5)
+        hotkey_2_modifyer_2.grid        (column = 2, row = 2, pady = 5, padx = 6)
+        hotkey_2_modifyer_3.grid        (column = 3, row = 2, pady = 5, padx = 6)
+        hotkey_2_key.grid               (column = 4, row = 2, pady = 5)
 
-        hotkey_1_modifyer_2.grid(column = 2, row = 1, pady = 5, padx = 6)
-        hotkey_2_modifyer_2.grid(column = 2, row = 2, pady = 5, padx = 6)
+        zoom_percent_Combobox.grid      (column = 1, row = 3, pady = 5)
+        zoom_multiplyer_Combobox.grid   (column = 3, row = 3, pady = 5)
+        border_thiccness_combobox.grid  (column = 1, row = 4)
 
-        hotkey_1_modifyer_3.grid(column = 3, row = 1, pady = 5, padx = 6)
-        hotkey_2_modifyer_3.grid(column = 3, row = 2, pady = 5, padx = 6)
-
-        hotkey_1_key.grid(column = 4, row = 1, pady = 5)
-        hotkey_2_key.grid(column = 4, row = 2, pady = 5)
-
-        zoom_percent_Combobox.grid(column = 1, row = 3, pady = 5)
-        zoom_multiplyer_Combobox.grid(column = 3, row = 3, pady = 5)
-        border_thiccness_combobox.grid(column = 1, row = 4)
-
-        snapshot_mode_button.grid(column = 0, row = 5, pady = 5)
-        snapshot_mode_button_tooltip = CreateToolTip(snapshot_mode_button, "Snapshot Mode: \nFreezes your screen, allowing you to crop a current point in time")
-
-        delay_clip_mode_button.grid(column = 1, row = 5, padx = 6, pady = 5)
-        delay_clip_mode_button_tooltip = CreateToolTip(delay_clip_mode_button, "Delayed Mode: \nTakes a screenshot and holds it in memory, upon the Clip Hotkey again display the screenshot allowing you to crop it")
-
-        multi_clip_mode_button.grid(column = 2, row = 5, padx = 6, pady = 5)
-        cursor_guidlines_tooltip = CreateToolTip(multi_clip_mode_button, "Lets you clip with the same clipping window until you close it with Right Click")
-
-        cursor_guidelines_button.grid(column = 3, row = 5, padx = 6, pady = 5)
-        cursor_guidlines_tooltip = CreateToolTip(cursor_guidelines_button, "This toggles the visual pink lines when clipping")
-
-        use_win32_clipboard_copy.grid(column = 4, row = 5, padx = 6, pady = 5)
-        use_win32_clipboard_copy_tooltip = CreateToolTip(use_win32_clipboard_copy, "Copy clip using win32clipboard \nThis is more flexable and faster")
+        
 
         settings_window_root.update()
         xloc = (root.winfo_screenwidth() // 2) - (settings_window_root.winfo_width() // 2)  
@@ -1711,23 +1636,7 @@ class snipping_tool():
         self.create_drawing_settings_win(root, startx = xloc, starty = yloc)
         
 
-        zoom_percent_Combobox.bind("<KeyRelease>", callbc)
-        zoom_percent_Combobox.bind("<FocusOut>", check_float)
 
-        border_thiccness_combobox.bind("<KeyRelease>", force_int)
-
-        zoom_multiplyer_Combobox.bind("<KeyRelease>", callbc)
-        zoom_multiplyer_Combobox.bind("<FocusOut>", check_float_zoom_multiplyer_Combobox)
-
-        hotkey_1_modifyer_1.bind("<FocusOut>", check_modifyer_key)
-        hotkey_2_modifyer_1.bind("<FocusOut>", check_modifyer_key)
-        hotkey_1_modifyer_2.bind("<FocusOut>", check_modifyer_key)
-        hotkey_2_modifyer_2.bind("<FocusOut>", check_modifyer_key)
-        hotkey_1_modifyer_3.bind("<FocusOut>", check_modifyer_key)
-        hotkey_2_modifyer_3.bind("<FocusOut>", check_modifyer_key)
-
-        hotkey_1_key.bind("<KeyRelease>", prevent_multi_keys)
-        hotkey_2_key.bind("<KeyRelease>", prevent_multi_keys)
 
         
 
@@ -1827,12 +1736,8 @@ class tray():
         try:
             Global_hotkeys.remove_hotkey(self.clip_app.hwnd, self.clip_app.clip_hotkey[3], self.clip_app.clip_hotkey[0])
             Global_hotkeys.remove_hotkey(self.clip_app.hwnd, self.clip_app.gif_hotkey[3], self.clip_app.gif_hotkey[0])
-            #keyboard.GlobalHotKeys.stop(self.clip_app.clip_hotkey)
-            #keyboard.GlobalHotKeys.stop(self.clip_app.gif_hotkey)
         except Exception as e:print(e)
-        try: 
-            for i in list(ahk_blocking_hotkeys.hotkeys.keys()).copy(): ahk_blocking_hotkeys.destroy_blocking_hotkey(i)
-        except:pass
+
         root.destroy()
         raise SystemExit
 
