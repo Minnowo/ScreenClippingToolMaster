@@ -1122,45 +1122,46 @@ class snipping_tool():
             display_screen.geometry('{}x{}+{}+{}'.format((width + self.border_thiccness), (height + self.border_thiccness),(x1 + monx[0]), (y1 + monx[1]))) # +2 gives slight outline on image 
 
             right_click_menu = Menu(display_screen, tearoff = 0)
-            right_click_menu.add_command(label ="Copy", accelerator="Ctrl+C", command = lambda event = None, win= display_screen : self.copy(event, win))
-            right_click_menu.add_command(label ="Save", accelerator="Ctrl+S", command = lambda event = None, win= display_screen : self.save(event, win))
-            right_click_menu.add_command(label ="OCR", accelerator="Ctrl+T", command = lambda event = None, win= display_screen : self.tesseract_clip(event, win))
-            right_click_menu.add_command(label ="AlwaysOnTop", accelerator="Tab", command = lambda event = None, win= display_screen : self.top_most(event, win))
-            right_click_menu.add_command(label ="Destroy", accelerator="Esc", command = lambda event = None, win = display_screen : self.close(event, win))
-            right_click_menu.add_command(label ="Draw", command = lambda win = display_screen : self.enable_drawing( win))
+            right_click_menu.add_command(label ="Copy",         accelerator="Ctrl+C",   command = lambda event = None, win= display_screen : self.copy(event, win))
+            right_click_menu.add_command(label ="Save",         accelerator="Ctrl+S",   command = lambda event = None, win= display_screen : self.save(event, win))
+            right_click_menu.add_command(label ="OCR",          accelerator="Ctrl+T",   command = lambda event = None, win= display_screen : self.tesseract_clip(event, win))
+            right_click_menu.add_command(label ="AlwaysOnTop",  accelerator="Tab",      command = lambda event = None, win= display_screen : self.top_most(event, win))
+            right_click_menu.add_command(label ="Destroy",      accelerator="Esc",      command = lambda event = None, win = display_screen : self.close(event, win))
+            right_click_menu.add_command(label ="Draw",                                 command = lambda win = display_screen : self.enable_drawing( win))
             right_click_menu.add_separator() 
-            right_click_menu.add_command(label ="SnapshotMode", accelerator= self.snapshot, command = lambda :  self.toggle_snapshot_mode())
-            right_click_menu.add_command(label ="DelayMode", accelerator= self.delayed_clip , command = lambda :  self.toggle_delay_mode())
-            right_click_menu.add_command(label ="MultiClip", accelerator= self.multi_clip , command = lambda :  self.toggle_multi_mode())
+            right_click_menu.add_command(label ="SnapshotMode", accelerator= self.snapshot,         command = lambda :  self.toggle_snapshot_mode())
+            right_click_menu.add_command(label ="DelayMode",    accelerator= self.delayed_clip ,    command = lambda :  self.toggle_delay_mode())
+            right_click_menu.add_command(label ="MultiClip",    accelerator= self.multi_clip ,      command = lambda :  self.toggle_multi_mode())
             right_click_menu.add_separator() 
-            right_click_menu.add_command(label ="TakeScreenshot", accelerator= self.hotkey_visual_in_settings["current_hotkey_1"], command = lambda :  self.call_create_clip_window())
-            right_click_menu.add_command(label ="TakeGif", accelerator= self.hotkey_visual_in_settings["current_hotkey_2"], command = lambda :  self.on_activate_gif())
+            right_click_menu.add_command(label ="TakeScreenshot",   accelerator= self.hotkey_visual_in_settings["current_hotkey_1"],    command = lambda :  self.call_create_clip_window())
+            right_click_menu.add_command(label ="TakeGif",          accelerator= self.hotkey_visual_in_settings["current_hotkey_2"],    command = lambda :  self.on_activate_gif())
             right_click_menu.add_separator()
-            right_click_menu.add_command(label ="DestroyAll", command = lambda :  self.destroy_all(1))
-            right_click_menu.add_command(label ="BringAllFront", command = lambda :  self.bringallfront())
+            right_click_menu.add_command(label ="DestroyAll",       command = lambda :  self.destroy_all(1))
+            right_click_menu.add_command(label ="BringAllFront",    command = lambda :  self.bringallfront())
             right_click_menu.add_separator()
-            right_click_menu.add_command(label ="Settings", command = lambda :  self.settings_window())
-            right_click_menu.add_command(label ="DrawingSettings", command = lambda :  self.create_drawing_settings_win(root, (x1 + monx[0]), (y1 + monx[1])))
+            right_click_menu.add_command(label ="Settings",         command = lambda :  self.settings_window())
+            right_click_menu.add_command(label ="DrawingSettings",  command = lambda :  self.create_drawing_settings_win(root, (x1 + monx[0]), (y1 + monx[1])))
 
-            label1 = Canvas(display_screen,  bg = self.border_color, borderwidth = self.border_thiccness, highlightthickness=0)#, width = width, height = height) # border color
-            label1.pack(expand = True, fill = BOTH)
-            label1.create_image(0, 0, image = img, anchor = NW)#image = img # Keep img in memory # VERY IMPORTANT 
-            label1.image = img
+            img_canvas = Canvas(display_screen,  bg = self.border_color, borderwidth = self.border_thiccness, highlightthickness=0)
+            img_canvas.pack(expand = True, fill = BOTH)
+            img_canvas.create_image(0, 0, image = img, anchor = NW) 
+            img_canvas.image = img # Keep img in memory # VERY IMPORTANT
 
             label2 = Label(display_screen) # Label that holds temp image on zoom in
 
-            label1.bind("<B1-Motion>", lambda event, win = display_screen : self.Dragging(event, win))  # Pass current Toplevel window so it knows what window to drag/copy/destroy
-            label1.bind("<Button-1>", lambda event, win = label1 : self.SaveLastClickPos(event, win))
-            label1.bind('<Escape>', lambda event, win = display_screen : self.close(event, win))
-            label1.bind("<Control-c>", lambda event, win = display_screen : self.copy(event, win))
-            label1.bind("<Tab>", lambda event, win = display_screen : self.top_most(event, win))
-            label1.bind("<Control-s>", lambda event, win= display_screen : self.save(event, win))
-            label1.bind("<Control-t>", lambda event, win = display_screen : self.tesseract_clip(event, win))
-            label1.bind("<Button-3>", lambda event, menu = right_click_menu : self.show_popup_menu(event, menu))
+            img_canvas.bind("<B1-Motion>",  lambda event, win = display_screen : self.Dragging(event, win))  # Pass current Toplevel window so it knows what window to drag/copy/destroy
+            img_canvas.bind("<Button-1>",   lambda event, win = img_canvas : self.SaveLastClickPos(event, win))
+            img_canvas.bind('<Escape>',     lambda event, win = display_screen : self.close(event, win))
+            img_canvas.bind("<Control-c>",  lambda event, win = display_screen : self.copy(event, win))
+            img_canvas.bind("<Tab>",        lambda event, win = display_screen : self.top_most(event, win))
+            img_canvas.bind("<Control-s>",  lambda event, win= display_screen : self.save(event, win))
+            img_canvas.bind("<Control-t>",  lambda event, win = display_screen : self.tesseract_clip(event, win))
+            img_canvas.bind("<Button-3>",   lambda event, menu = right_click_menu : self.show_popup_menu(event, menu))
 
-            label2.bind("<Button-3>", self.remove_zoom)
-            display_screen.bind("<MouseWheel>",self.zoomer)
-            display_screen.bind("<Motion>", self.crop)
+            label2.bind("<Button-3>",           self.remove_zoom)
+
+            display_screen.bind("<MouseWheel>", self.zoomer)
+            display_screen.bind("<Motion>",     self.crop)
 
             display_screen.protocol("WM_DELETE_WINDOW", lambda event = None, win = display_screen : self.close(event, win)) 
 
