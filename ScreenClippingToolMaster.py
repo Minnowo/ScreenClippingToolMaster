@@ -1086,7 +1086,7 @@ class snipping_tool():
                     if isinstance(widget, Toplevel):
                         if str(widget.title()).find("clip_window") != -1:
                             widget.attributes('-alpha', .0) 
-            self.curx, self.cury = (event.x, event.y)
+            self.curx, self.cury = event.x, event.y
 
             # format the select area so it can grab from top left to bottom right
             if self.start_x <= self.curx and self.start_y <= self.cury:   x1, y1, x2, y2 = (self.start_x, self.start_y, self.curx, self.cury) # Right Down
@@ -1147,7 +1147,7 @@ class snipping_tool():
             img_canvas.create_image(0, 0, image = img, anchor = NW) 
             img_canvas.image = img # Keep img in memory # VERY IMPORTANT
 
-            label2 = Label(display_screen) # Label that holds temp image on zoom in
+            tmp_img = Label(display_screen) # Label that holds temp image on zoom in
 
             img_canvas.bind("<B1-Motion>",  lambda event, win = display_screen : self.Dragging(event, win))  # Pass current Toplevel window so it knows what window to drag/copy/destroy
             img_canvas.bind("<Button-1>",   lambda event, win = img_canvas : self.SaveLastClickPos(event, win))
@@ -1158,7 +1158,7 @@ class snipping_tool():
             img_canvas.bind("<Control-t>",  lambda event, win = display_screen : self.tesseract_clip(event, win))
             img_canvas.bind("<Button-3>",   lambda event, menu = right_click_menu : self.show_popup_menu(event, menu))
 
-            label2.bind("<Button-3>",           self.remove_zoom)
+            tmp_img.bind("<Button-3>",           self.remove_zoom)
 
             display_screen.bind("<MouseWheel>", self.zoomer)
             display_screen.bind("<Motion>",     self.crop)
@@ -1190,35 +1190,32 @@ class snipping_tool():
         del event.widget.image
         self.img = None
         self.zoomcycle = 0
-        event.widget.place(x = -10, y = -10, anchor = "e")  # Move the empty label off the visual window
+        event.widget.place(x = -10, y = -10, anchor = "e")  # Move the empty label off the visual window 
         gc.collect()
 
 
 
     def zoomer(self,event = None, fake_call = 0):
+        toplev = event.widget.master if fake_call == 0 else event
+
         if fake_call == 0:                          # fake call is used to call the function without using the binds allowing the save function to remove zoomed images
             if (event.delta > 0):
-                toplev = event.widget.master if fake_call == 0 else event
                 self.img = self.save_img_data[str(toplev.title())]
-
-                if self.zoomcycle != int(self.multiplyer // 0.005): 
-                    self.zoomcycle += 1
+                if self.zoomcycle != int(self.multiplyer // 0.005): self.zoomcycle += 1
 
             elif (event.delta < 0):
-
-                if self.zoomcycle != 0: 
-                    self.zoomcycle -= 1
+                if self.zoomcycle != 0: self.zoomcycle -= 1
 
         if self.zoomcycle == 0: 
             del self.img
-            toplev = event.widget.master if fake_call == 0 else event
+            
             array_of_children_widgets = toplev.winfo_children()
             self.img = None
             array_of_children_widgets[2].place(x = -10, y = -10, anchor = "e")  # Move the empty label off the visual window
 
             try:
-                del array_of_children_widgets[2].image  # [2] == self.label2 (holds zoomed image)
-                array_of_children_widgets[2].image = '' # [2] == self.label2 (holds zoomed image)
+                del array_of_children_widgets[2].image  # [2] == tmp_img (holds zoomed image)
+                array_of_children_widgets[2].image = '' # [2] == tmp_img (holds zoomed image)
             except:pass
             
             gc.collect()
@@ -1230,22 +1227,21 @@ class snipping_tool():
     def crop(self,event = None):
         if (self.zoomcycle) != 0 and event != None:
             widget = event.widget.master
-            array_of_children_widgets = widget.winfo_children()         # [2] == self.label2 (holds zoomed image)
+            array_of_children_widgets = widget.winfo_children()         # [2] == tmp_img (holds zoomed image)
             x = event.x_root - widget.winfo_rootx()                     # Get mouse x pos relative to window 
             y = event.y_root - widget.winfo_rooty()                     # Get mouse y pos relative to window 
             width = self.img.width if self.img.width > self.img.height else self.img.height  # Use whatever length is bigger
             size = int(width * self.scale_percent) , int(width * self.scale_percent)                 # Set the size of the zoom to 20% of the clips width
+            if size[0] < 1: size = (1,1) # Cant resize if its less than 1
 
-            multiplyer = self.multiplyer - (0.005 * self.zoomcycle)
-            
-            if (multiplyer) < 0.003: multiplyer = 0.004
+            multiplyer = self.multiplyer - (0.005 * self.zoomcycle) if (multiplyer) < 0.003 else 0.004
+
             width = int(width * multiplyer)
             tmp = self.img.crop((x-width,y-width,x+width,y+width))
-
-            if size[0] < 1: size = (1,1)                                # Cant resize if its less than 1
+                           
             tmp = PIL.ImageTk.PhotoImage(tmp.resize(size))
             array_of_children_widgets[2].configure(image= tmp)
-            array_of_children_widgets[2].image = tmp                    # [2] == self.label2 aka the label that holds the display img, which each clip has 
+            array_of_children_widgets[2].image = tmp                    # [2] == tmp_img aka the label that holds the display img, which each clip has 
             array_of_children_widgets[2].place(x = x, y = y, anchor="center")   # Adjust placement
 
 
