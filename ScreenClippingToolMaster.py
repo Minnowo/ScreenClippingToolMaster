@@ -301,8 +301,9 @@ class snipping_tool():
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
         self.lines_list = {}
         self.gif = []               # Keep all the pictures taken in gif mode
+        self.gif_bounds = []        # keep track of x and y coords for gif area 
         self.threads = []           # Keep track of used threads to join back later
-        self.gif_canvas = []     # Keep track of gif screens to disable binds
+        #self.gif_canvas = []     # Keep track of gif screens to disable binds
         self.drawing_combo_box = []
         
         print("snipping tool started")
@@ -340,14 +341,12 @@ class snipping_tool():
 
 
     #***************** Run the record function in seperate thread to ensure it doesn't block main program *************. 
-    def record_thread(self, x1, y1, x2, y2):
-        for widget in root.winfo_children():
-            if isinstance(widget, Toplevel):
-                if str(widget.title()).find("clip_window") != -1:
-                    widget.attributes('-alpha', .0)  
-        a = Thread(target = self.record, args = (x1, y1, x2, y2))
-        self.threads.append(a)
-        a.start()
+    def record_thread(self):
+        if not self.record_on:
+            if len(self.gif_bounds) == 4:
+                a = Thread(target = self.record, args = (self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3]))
+                self.threads.append(a)
+                a.start()
 
 
 
@@ -440,7 +439,7 @@ class snipping_tool():
             master_screen.attributes("-topmost", True) 
             
             screen = Canvas(master_screen, bg="grey11", highlightthickness = 0)
-            self.gif_canvas.append(screen) 
+            #self.gif_canvas.append(screen) 
             screen.pack(fill=BOTH, expand=YES)
 
             screen.bind("<ButtonRelease-3>", self.OnRightClick)
@@ -656,11 +655,20 @@ class snipping_tool():
 
     #***************** When you let go of the gif select window, get coords, create buttons to start/stop recording the video *************. 
     def OnReleaseGif(self, event): 
-        def top(event, widget):
-            widget.lift()
-        def on_unmap(event, widget): 
-            widget.deiconify()
+        def exit_gif(widget):
+            widget.destroy()
+            self.record_on = False
+            self.gif.clear()
+            gc.collect()
 
+        def moving_window(event, widget):
+            gif_bounds = widget.find_withtag("gif_area")
+            winx, winy = (event.widget.winfo_x() + 10,event.widget.winfo_y() + 33) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
+            bounds = [i for i in widget.bbox(gif_bounds[0])]
+            self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2], winy + bounds[3]]
+            
+
+        self.destroy_all(0)
 
         #self.end_monitorid = windll.user32.MonitorFromPoint(int(root.winfo_pointerx()), int(root.winfo_pointery()), 2) # Set finsih monitor id
         self.curx, self.cury = (event.x, event.y)
@@ -675,17 +683,36 @@ class snipping_tool():
             x1, y1, x2, y2 = (int(self.curx), int(self.cury), int(self.start_x), int(self.start_y)) # Left Up
         print(f"({x1}, {y1}) x ({x2}, {y2}) --> {datetime.datetime.now()}")
 
-        buttons = Toplevel(event.widget)
-        buttons.protocol("WM_DELETE_WINDOW", self.destroy_all)                              # If you hit the X on the button window destroy the clip windows 
+        self.gif_bounds.clear()
+        for i in [x1, y1, x2, y2]: self.gif_bounds.append(i)
+
+        gif_area = Toplevel(root)
+        gif_area.title("GifWindow")
+        gif_area.minsize(x2-x1, y2-y1)
+        gif_area.resizable(0,0)
+        gif_area.attributes("-transparent", "blue")
+        gif_area.attributes('-topmost', 'true')
+        gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1-9, y1-32))
+
+        bg = Canvas(gif_area, bg="grey11", highlightthickness = 0)
+        bg.pack(expand = True, fill = BOTH)
+        bg.create_rectangle(0, 0, x2-x1+1, y2-y1+1, outline='red', width=1, fill="blue", tag = "gif_area")
+
+
+        gif_area.protocol("WM_DELETE_WINDOW", lambda widget = gif_area : exit_gif(widget))
+        gif_area.bind('<Configure>', lambda event, widget = bg : moving_window(event, widget))
+
+        buttons = Toplevel(gif_area)
+        buttons.protocol("WM_DELETE_WINDOW", lambda widget = gif_area : exit_gif(widget))                              # If you hit the X on the button window destroy the clip windows 
         buttons.lift()                                                                      # Bring in front of clipping windows 
         buttons.resizable(0,0)                                                              # Cant resize
         buttons.attributes("-topmost", True)                                                # Always on top
         mousex, mousey = root.winfo_pointerxy()                                             # Get mouse xy
         buttons.geometry(f"{250}x{50}+{mousex - 115}+{mousey - 10}")                        # Spawn the window on your mouse
-        buttons.bind("<Unmap>", lambda event, widget = buttons : on_unmap(event, widget))   # Bind the minamize button to a function that maximizes the window 
+
 
         #***************** Make buttons *************. 
-        record_button = Button(buttons, text = "Start", command = lambda *args : self.record_thread(x1, y1, x2, y2))
+        record_button = Button(buttons, text = "Start", command = self.record_thread)
         record_button.pack(side = LEFT,expand = True, fill = BOTH)
 
         stop_record_button = Button(buttons, text = "Stop", command = self.stop_gif)
@@ -694,11 +721,7 @@ class snipping_tool():
         save_record_button = Button(buttons, text = "Save", command = self.save_gif)
         save_record_button.pack(side = LEFT, expand = True, fill = BOTH)
 
-        for canvas in self.gif_canvas:
-            for bind in ["<ButtonPress-1>", "<B1-Motion>", "<ButtonRelease-1>"]:canvas.unbind(bind)
-            canvas.bind("<ButtonPress-1>", lambda event, widget = buttons : top(event, widget))
 
-        self.gif_canvas.clear()
 
 
     
@@ -957,15 +980,15 @@ class snipping_tool():
         drawing_root.title("DrawingSettings")
         
         if startx != None and starty != None : 
-            drawing_root.geometry(f"+{int(startx)}+{int(starty)}")
+            drawing_root.geometry(f"+{startx}+{starty}")
 
         drawing_root.minsize(260, 90) 
         drawing_root.attributes('-topmost', 'true')
 
-        draw_color = Button(drawing_root, text = "LineColor", command = change_line_color)
-        clear = Button(drawing_root, text = "Clear", command = clear)
-        paint_button = Button(drawing_root, text = "Draw", command = enable_draw)
-        erase_button = Button(drawing_root, text = "Erase", command = enable_erase)
+        draw_color =    Button(drawing_root, text = "LineColor", command = change_line_color)
+        clear =         Button(drawing_root, text = "Clear", command = clear)
+        paint_button =  Button(drawing_root, text = "Draw", command = enable_draw)
+        erase_button =  Button(drawing_root, text = "Erase", command = enable_erase)
 
         line_width_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 201)],  state='readonly')
         self.drawing_combo_box.append(line_width_combobox)
@@ -974,8 +997,8 @@ class snipping_tool():
         zoom_scale_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 21)],  state='readonly')
         zoom_scale_combobox.set(self.brush_scale_factor)
 
-        line_thickness_label = Label(drawing_root, text =  "Line Thickness")
-        zoom_scale_label = Label(drawing_root, text =  "Zoom Scale Factor")
+        line_thickness_label =  Label(drawing_root, text =  "Line Thickness")
+        zoom_scale_label =      Label(drawing_root, text =  "Zoom Scale Factor")
 
         draw_color.grid(column = 0, row = 0, sticky = EW)
         clear.grid(column = 0, row = 1, sticky = EW, columnspan = 2)
@@ -1141,6 +1164,8 @@ class snipping_tool():
             right_click_menu.add_separator()
             right_click_menu.add_command(label ="Settings",         command = lambda :  self.settings_window())
             right_click_menu.add_command(label ="DrawingSettings",  command = lambda :  self.create_drawing_settings_win(root, (x1 + monx[0]), (y1 + monx[1])))
+            #right_click_menu.add_command(label ="ClipManager",      command = lambda :  self.create_drawing_settings_win(root, (x1 + monx[0]), (y1 + monx[1])))
+
 
             img_canvas = Canvas(display_screen,  bg = self.border_color, borderwidth = self.border_thiccness, highlightthickness=0)
             img_canvas.pack(expand = True, fill = BOTH)
@@ -1234,7 +1259,7 @@ class snipping_tool():
             size = int(width * self.scale_percent) , int(width * self.scale_percent)                 # Set the size of the zoom to 20% of the clips width
             if size[0] < 1: size = (1,1) # Cant resize if its less than 1
 
-            multiplyer = self.multiplyer - (0.005 * self.zoomcycle) if (multiplyer) < 0.003 else 0.004
+            multiplyer = self.multiplyer - (0.005 * self.zoomcycle) if (self.multiplyer - (0.005 * self.zoomcycle)) > 0.003 else 0.004
 
             width = int(width * multiplyer)
             tmp = self.img.crop((x-width,y-width,x+width,y+width))
