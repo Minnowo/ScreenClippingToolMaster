@@ -297,6 +297,7 @@ class snipping_tool():
         self.hwnd = root.winfo_id()
         self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
         self.draw = 1
+        self.stop_drag = 0
 
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
         self.lines_list = {}
@@ -662,14 +663,38 @@ class snipping_tool():
             self.gif.clear()
             gc.collect()
 
-        def moving_window(event, widget):
-            gif_bounds = widget.find_withtag("gif_area")
-            winx, winy = (event.widget.winfo_x() + 10,event.widget.winfo_y() + 33) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
-            bounds = [i for i in widget.bbox(gif_bounds[0])]
-            self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-3, winy + bounds[3]-3] # idk why -3 makes it take pics inside the red border but it does
-            #print(self.gif_bounds)
+        def show_border(widget):
+            self.stop_drag = 0
+            widget.itemconfig("gif_area", outline = "red")
 
+        def moving_window(event, widget):
+            if not self.stop_drag:
+                gif_bounds = widget.find_withtag("gif_area")
+                winx, winy = (event.widget.winfo_x() + 9,event.widget.winfo_y() + 32) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
+                bounds = [i for i in widget.bbox(gif_bounds[0])]
+                self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-3, winy + bounds[3]-3] # idk why -3 makes it take pics inside the red border but it does
+                widget.itemconfig("gif_area", outline = "")
+            else:
+                gif_bounds = widget.find_withtag("gif_area")
+                winx, winy = (event.widget.winfo_x() + 10,event.widget.winfo_y() + 33) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
+                bounds = [i for i in widget.bbox(gif_bounds[0])]
+                self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-3, winy + bounds[3]-3] # idk why -3 makes it take pics inside the red border but it does
+                root.after_cancel(self.stop_drag)
+            self.stop_drag = root.after(500, lambda w = widget : show_border(w))
+
+        def on_enter(event, widget):
+            try:
+                xy = [int(i.strip()) for i in event.widget.get().split(" ")]
+                widget.geometry(f"+{xy[0]-9}+{xy[1]-32}")
+            except:
+                return
+                
         self.destroy_all(0)
+
+        for widget in root.winfo_children():
+                if isinstance(widget, Toplevel):
+                    if str(widget.title()).find("GifWindow") != -1:
+                        exit_gif(widget)
 
         #self.end_monitorid = windll.user32.MonitorFromPoint(int(root.winfo_pointerx()), int(root.winfo_pointery()), 2) # Set finsih monitor id
         self.curx, self.cury = (event.x, event.y)
@@ -729,8 +754,14 @@ class snipping_tool():
         save_record_button = Button(buttons, text = "Save", command = self.save_gif)
         save_record_button.pack(side = LEFT, expand = True, fill = BOTH)
 
+        xypos_label = Label(buttons, text = "XY Position  ")
+        xypos_label.pack(anchor = E)
 
+        xyposition_of_main = ttk.Combobox(buttons, width = 9, values = [(i, x//2) for i, x in enumerate(numpy.arange(0, 4096))])
+        xyposition_of_main.pack()
 
+        xyposition_of_main.bind("<Return>", lambda event, win = gif_area : on_enter(event, win))
+        xyposition_of_main.bind("<<ComboboxSelected>>", lambda event, win = gif_area : on_enter(event, win))
 
     
 
