@@ -1,6 +1,7 @@
 import sys, os, signal, time, threading, PIL.Image, ctypes, datetime, gc, pytesseract, imageio, numpy, io, win32clipboard
 import keyboard as kb
 import json
+import subprocess
 from infi.systray import SysTrayIcon 
 from tkinter import *
 from tkinter.filedialog import asksaveasfile, askopenfilename
@@ -35,6 +36,15 @@ def get_complementary(color):
     comp_color = 0xFFFFFF ^ color
     comp_color = "#%06X" % comp_color
     return comp_color
+
+def explore(path):                                                      # https://stackoverflow.com/a/50965628/13994936
+    FILEBROWSER_PATH = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
+    path = os.path.normpath(path)
+
+    if os.path.isdir(path):
+        subprocess.run([FILEBROWSER_PATH, path])
+    elif os.path.isfile(path):
+        subprocess.run([FILEBROWSER_PATH, '/select,', path])
 
 class PrintLogger(): # create file like object
     DEFAULT_OUT = sys.__stdout__
@@ -248,7 +258,7 @@ class snipping_tool():
                 self.line_width = settings["line_width"]
                 self.line_color = settings["line_color"]
                 self.brush_scale_factor = settings["brush_scale_factor"]
-               # settings_file.close()
+                self.open_on_save = settings["open_on_save"]
                 print("settings imported successfully")
                     
         except FileNotFoundError:
@@ -267,6 +277,7 @@ class snipping_tool():
             self.line_width = 5
             self.line_color = "#ff08ff"
             self.brush_scale_factor = 10
+            self.open_on_save = 1
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                               "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}       
             print("no settings file found")
@@ -286,6 +297,7 @@ class snipping_tool():
             self.line_width = 5
             self.line_color = "#ff08ff"
             self.brush_scale_factor = 10
+            self.open_on_save = 1
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
                                               "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
             print("there was an error importing the settings \n{}".format(e))
@@ -301,10 +313,10 @@ class snipping_tool():
 
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
         self.lines_list = {}
+        self.adjust_vals = {"ghost border" : 10, "title bar" : 33, "trial n err" : 3}
         self.gif = []               # Keep all the pictures taken in gif mode
         self.gif_bounds = []        # keep track of x and y coords for gif area 
         self.threads = []           # Keep track of used threads to join back later
-        #self.gif_canvas = []     # Keep track of gif screens to disable binds
         self.drawing_combo_box = []
         
         print("snipping tool started")
@@ -316,7 +328,7 @@ class snipping_tool():
 
         # <cmd> == WindowsKey, <alt> == AltKey, <ctrl> == CtrlKey, <shift> = shift
         self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, self.hotkey_visual_in_settings["current_hotkey_1"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_1_key"], self.on_activate_i) #keyboard.GlobalHotKeys({ '<cmd>+z': self.on_activate_i})
-        self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, self.hotkey_visual_in_settings["current_hotkey_2"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_2_key"], self.on_activate_gif) #keyboard.GlobalHotKeys({ '<cmd>+c': self.on_activate_gif})
+        self.gif_hotkey =   Global_hotkeys.create_hotkey(self.hwnd, 1, self.hotkey_visual_in_settings["current_hotkey_2"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_2_key"], self.on_activate_gif) #keyboard.GlobalHotKeys({ '<cmd>+c': self.on_activate_gif})
 
 
 
@@ -324,21 +336,12 @@ class snipping_tool():
     #***************** Call Functions *************. 
     #*****************                *************. 
 
-    def block_hotkeys(self, hotkey : list, script : list, hotkey_name :list, number_of_hotkeys : int):
-        if self.block_hotkeys:
-            ahk_blocking_hotkeys.create_blocking_hotkeys(hotkey, script, hotkey_name, number_of_hotkeys)
-
-
     def on_activate_gif(self):
-        root.after(0 , lambda : self.create_gif_window())
+        root.after(0 , self.create_gif_window)
 
 
     def on_activate_i(self):
-        root.after(0 , lambda : self.create_clip_window())
-
-
-    def call_create_clip_window(self):
-        root.after(0 , lambda : self.create_clip_window())
+        root.after(0 , self.create_clip_window)
 
 
     #***************** Run the record function in seperate thread to ensure it doesn't block main program *************. 
@@ -348,10 +351,6 @@ class snipping_tool():
                 a = Thread(target = self.record, args = ())
                 self.threads.append(a)
                 a.start()
-
-
-
-
 
 
     #*****************                                *************. 
@@ -389,15 +388,8 @@ class snipping_tool():
     #***************** Take rapid screenshots of selected area and stick them into an array *************. 
     def record(self):
         self.record_on = True
-        #monitor_ids = {} 
-        #for i in get_monitors():
-        #    monitor_ids[windll.user32.MonitorFromPoint(i.x, i.y, 2)] = i # param_1 = monitor_x + 1,  param_2 = monitor_y,  param_3 [0], [1], [3] = monitor_default to null, monitor_default to primary, monitor_default to nearest 
-        
+
         print(f"\nstart monitor = {self.monitorid}")
-        #if self.monitorid in list(monitor_ids.keys()):# and self.end_monitorid in list(monitor_ids.keys()): 
-            #if self.monitorid == self.end_monitorid:
-            #monitor = monitor_ids[self.monitorid]
-            #x1, y1, x2, y2 = int(monitor.x), int(monitor.y), int(monitor.x), int( monitor.y)
         while self.record_on == True:
             rct = (self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3])#rct = (self.gif_bounds[0] + x1, self.gif_bounds[1] + y1, self.gif_bounds[2] + x2, self.gif_bounds[3] + y2)
             img = getRectAsImage(rct) #x1, y1, x2, y2 = self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[0]
@@ -421,7 +413,6 @@ class snipping_tool():
 
 
     #***************** Create the clipping window for each monitor *************. 
-    @cooldown(1.5)
     def create_gif_window(self):
         self.destroy_all(0)
 
@@ -457,7 +448,6 @@ class snipping_tool():
             
 
     #***************** Create the clipping window for each monitor *************. 
-    @cooldown(1.5)
     def create_clip_window(self):
         self.destroy_all(0)
 
@@ -642,6 +632,7 @@ class snipping_tool():
                 for i in self.gif.copy(): 
                     writer.append_data(numpy.array(i))    
                     del self.gif[self.gif.index(i)]
+            if self.open_on_save: explore(f.name)
         except KeyError:
             messagebox.showerror(title="", message="The filetype {} is most likely unsupported".format(format), parent=root)
             print(KeyError)
@@ -665,20 +656,21 @@ class snipping_tool():
 
         def show_border(widget):
             self.stop_drag = 0
-            widget.itemconfig("gif_area", outline = "red")
+            try: widget.itemconfig("gif_area", outline = self.border_color) # if the window is destroyed before the 500 ms delay it throws an error 
+            except:pass
 
         def moving_window(event, widget):
             if not self.stop_drag:
                 gif_bounds = widget.find_withtag("gif_area")
-                winx, winy = (event.widget.winfo_x() + 9,event.widget.winfo_y() + 32) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
+                winx, winy = (event.widget.winfo_x() + self.adjust_vals["ghost border"],event.widget.winfo_y() + self.adjust_vals["title bar"]) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
                 bounds = [i for i in widget.bbox(gif_bounds[0])]
-                self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-3, winy + bounds[3]-3] # idk why -3 makes it take pics inside the red border but it does
+                self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-self.adjust_vals["trial n err"], winy + bounds[3]-self.adjust_vals["trial n err"]] # idk why -3 makes it take pics inside the red border but it does
                 widget.itemconfig("gif_area", outline = "")
             else:
                 gif_bounds = widget.find_withtag("gif_area")
-                winx, winy = (event.widget.winfo_x() + 10,event.widget.winfo_y() + 33) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
+                winx, winy = (event.widget.winfo_x() + self.adjust_vals["ghost border"],event.widget.winfo_y() + self.adjust_vals["title bar"]) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
                 bounds = [i for i in widget.bbox(gif_bounds[0])]
-                self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-3, winy + bounds[3]-3] # idk why -3 makes it take pics inside the red border but it does
+                self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-self.adjust_vals["trial n err"], winy + bounds[3]-self.adjust_vals["trial n err"]] # idk why -3 makes it take pics inside the red border but it does
                 root.after_cancel(self.stop_drag)
             self.stop_drag = root.after(500, lambda w = widget : show_border(w))
 
@@ -729,7 +721,7 @@ class snipping_tool():
 
         bg = Canvas(gif_area, bg="grey11", highlightthickness = 0)
         bg.pack(expand = True, fill = BOTH)
-        bg.create_rectangle(0, 0, x2-x1+1, y2-y1+1, outline='red', width=1, fill="blue", tag = "gif_area")
+        bg.create_rectangle(0, 0, x2-x1+1, y2-y1+1, outline= self.border_color, width=1, fill="blue", tag = "gif_area")
 
 
         gif_area.protocol("WM_DELETE_WINDOW", lambda widget = gif_area : exit_gif(widget))
@@ -876,6 +868,7 @@ class snipping_tool():
         if format.upper() == "JPG": format = "jpeg"
         try:
             self.save_img_data[str(win.title())].save(str(f.name), format = str(format))
+            if self.open_on_save: explore(f.name)
         except KeyError:
             messagebox.showerror(title="", message="The filetype {} is most likely unsupported".format(format), parent=root)
             print(KeyError)
@@ -1165,8 +1158,12 @@ class snipping_tool():
         else:
             width = int(imgfromfile.width); height = int(imgfromfile.height)
             img = ImageTk.PhotoImage(imgfromfile)
-            mons = get_monitors()
-            monx = (mons[0].x, mons[0].y)
+
+            for widget in root.winfo_children():
+                if isinstance(widget, Toplevel):
+                    if str(widget.title()).find("Settings") != -1:
+                        monx = (widget.winfo_x(), widget.winfo_y())
+
             x1 = 0; y1 = 0
             imgobj = imgfromfile
             date_time = datetime.datetime.now()
@@ -1195,7 +1192,7 @@ class snipping_tool():
             right_click_menu.add_command(label ="DelayMode",    accelerator= self.delayed_clip ,    command = lambda :  self.toggle_delay_mode())
             right_click_menu.add_command(label ="MultiClip",    accelerator= self.multi_clip ,      command = lambda :  self.toggle_multi_mode())
             right_click_menu.add_separator() 
-            right_click_menu.add_command(label ="TakeScreenshot",   accelerator= self.hotkey_visual_in_settings["current_hotkey_1"],    command = lambda :  self.call_create_clip_window())
+            right_click_menu.add_command(label ="TakeScreenshot",   accelerator= self.hotkey_visual_in_settings["current_hotkey_1"],    command = lambda :  self.on_activate_i())
             right_click_menu.add_command(label ="TakeGif",          accelerator= self.hotkey_visual_in_settings["current_hotkey_2"],    command = lambda :  self.on_activate_gif())
             right_click_menu.add_separator()
             right_click_menu.add_command(label ="DestroyAll",       command = lambda :  self.destroy_all(1))
@@ -1368,6 +1365,11 @@ class snipping_tool():
         self.auto_hide_clip = 1 - self.auto_hide_clip
         print(f"auto hide set : {self.auto_hide_clip}")
 
+    #***************** Toggle open on save *************. 
+    def toggle_open_on_save(self):
+        self.open_on_save = 1 - self.open_on_save
+        print(f"open_on_save set : {self.open_on_save}")
+
 
     #***************** Destroy all toplevel widgets or only destroy clpping windows *************.###
     def destroy_all(self, destroy = 0):
@@ -1476,13 +1478,17 @@ class snipping_tool():
             self.toggle_win32_clipboard()
             use_win32_clipboard_copy.config(text = f"Win32clipboard {self.win32clipboard}")
             
-        def call_toggle_auto_copy(*args):
+        def change_toggle_auto_copy(*args):
             self.toggle_auto_copy()
             auto_copy_clip_button.config(text = f"AutoCopyClip {self.auto_copy_image}")
 
-        def call_toggle_auto_hide(*args):
+        def change_toggle_auto_hide(*args):
             self.toggle_auto_hide()
             auto_hide_clip_button.config(text = f"AutoHideClip {self.auto_hide_clip}")
+
+        def change_open_on_save(*args):
+            self.toggle_open_on_save()
+            open_on_save_button.config(text = f"AutoOpenOnSave {self.open_on_save}")
 
         def show_console(*args):
             PrintLogger.consolewin(root)
@@ -1505,6 +1511,7 @@ class snipping_tool():
             self.win32clipboard = 1
             self.border_color = "#ff08ff"
             self.border_thiccness = 1
+            self.open_on_save = 1
 
 
             if self.hotkey_visual_in_settings["current_hotkey_1"] != '<cmd>+z':
@@ -1541,6 +1548,19 @@ class snipping_tool():
                 print(f"clip border color = {self.border_color}")
 
 
+        def clip_from_clipboard(*args):
+            img = ImageGrab.grabclipboard()
+            print(img)
+            if img:
+                try:
+                    self.show_clip_window(None, True, img)
+                except Exception as e:
+                    messagebox.showerror(title="", message=f"{e}", parent=root)
+                finally:
+                    del img
+                    gc.collect()
+            else:
+                messagebox.showerror(title="", message="No image on clipboard", parent=root)
 
         def open_image(*args):
             img = askopenfilename(parent=root)
@@ -1565,9 +1585,11 @@ class snipping_tool():
                             "auto_hide_clip" : self.auto_hide_clip, "cursor_lines"    : self.cursor_lines, "default_alpha"      : self.default_alpha,
                             "win32clipboard" : self.win32clipboard, "border_color"    : self.border_color, "border_thiccness"   : self.border_thiccness,
                             "line_width"     : self.line_width,     "line_color"      : self.line_color,   "brush_scale_factor" : self.brush_scale_factor, 
+                            "open_on_save"   : self.open_on_save,
                             "hotkeys"        : self.hotkey_visual_in_settings}
                 save_file.write(json.dumps(settings,  indent=3))
                 save_file.close()
+                print("\n\n", json.dumps(settings,  indent=3), "\n\n")
 
         for widget in root.winfo_children():
             if isinstance(widget, Toplevel):
@@ -1588,37 +1610,52 @@ class snipping_tool():
         show_console_button =       Button(settings_window_root, text =  "ShowConsole",                         command = show_console)
         choose_border_color =       Button(settings_window_root, text =  "Border/LineColor",                    command = change_border)
         open_image_button =         Button(settings_window_root, text =  "OpenImage",                           command = open_image) 
-        auto_copy_clip_button =     Button(settings_window_root, text = f"AutoCopyClip {self.auto_copy_image}", command = call_toggle_auto_copy)
-        auto_hide_clip_button =     Button(settings_window_root, text = f"AutoHideClip {self.auto_hide_clip}",  command = call_toggle_auto_hide)
+        open_from_clipboard_button =Button(settings_window_root, text =  "OpenFromClipboard",                   command = clip_from_clipboard) 
+        auto_copy_clip_button =     Button(settings_window_root, text = f"AutoCopyClip {self.auto_copy_image}", command = change_toggle_auto_copy)
+        auto_hide_clip_button =     Button(settings_window_root, text = f"AutoHideClip {self.auto_hide_clip}",  command = change_toggle_auto_hide)
         create_save_file_button =   Button(settings_window_root, text =  "Create Save",                         command = create_save_file)
         snapshot_mode_button =      Button(settings_window_root, text = f"SnapShotMode {self.snapshot}",        command = change_snapshot)
         delay_clip_mode_button =    Button(settings_window_root, text = f"DelayMode {self.delayed_clip}",       command = change_delay_clip)
         multi_clip_mode_button =    Button(settings_window_root, text = f"MultiMode {self.multi_clip}",         command = change_multi_mode)
         cursor_guidelines_button =  Button(settings_window_root, text = f"CursorLines {self.cursor_lines}",     command = change_lines)
         use_win32_clipboard_copy =  Button(settings_window_root, text = f"Win32clipboard {self.win32clipboard}",command = change_win32_clip)
+        open_on_save_button =       Button(settings_window_root, text = f"AutoOpenOnSave {self.open_on_save}",  command = change_open_on_save)
 
-        save_changes.grid               (column = 0, row = 6)
-        reset_changes.grid              (column = 1, row = 6)
-        restore_deault_button.grid      (column = 2, row = 6)
-        show_console_button.grid        (column = 3, row = 6)
-        choose_border_color.grid        (column = 4, row = 4)
-        open_image_button.grid          (column = 4, row = 3)
-        auto_copy_clip_button.grid      (column = 2, row = 4)
-        auto_hide_clip_button.grid      (column = 3, row = 4)
-        create_save_file_button.grid    (column = 4, row = 6)
-        snapshot_mode_button.grid       (column = 0, row = 5, pady = 5)
-        delay_clip_mode_button.grid     (column = 1, row = 5, padx = 6, pady = 5)
-        multi_clip_mode_button.grid     (column = 2, row = 5, padx = 6, pady = 5)
-        cursor_guidelines_button.grid   (column = 3, row = 5, padx = 6, pady = 5)
-        use_win32_clipboard_copy.grid   (column = 4, row = 5, padx = 6, pady = 5)
+        # row 5 is for modes
+        snapshot_mode_button.grid       (column = 0, row = 5, sticky = EW)
+        delay_clip_mode_button.grid     (column = 1, row = 5, sticky = EW)
+        multi_clip_mode_button.grid     (column = 2, row = 5, sticky = EW)        
+        use_win32_clipboard_copy.grid   (column = 3, row = 5, sticky = EW)
+
+        # row 6 for auto features 
+        auto_copy_clip_button.grid      (column = 0, row = 6, sticky = EW)
+        auto_hide_clip_button.grid      (column = 1, row = 6, sticky = EW)
+        open_on_save_button.grid        (column = 2, row = 6, sticky = EW)
+
+        # row 7 for other
+        cursor_guidelines_button.grid   (column = 0, row = 7, sticky = EW)
+        choose_border_color.grid        (column = 1, row = 7, sticky = EW)
+        open_image_button.grid          (column = 2, row = 7, sticky = EW)
+        open_from_clipboard_button.grid (column = 3, row = 7, sticky = EW)
+
+        # row 8 for function buttons
+        save_changes.grid               (column = 0, row = 8, sticky = EW)
+        reset_changes.grid              (column = 1, row = 8, sticky = EW)
+        restore_deault_button.grid      (column = 2, row = 8, sticky = EW)
+        show_console_button.grid        (column = 3, row = 8, sticky = EW)
+        create_save_file_button.grid    (column = 4, row = 8, sticky = EW)
 
         CreateToolTip(snapshot_mode_button,     "Snapshot Mode: \nFreezes your screen, allowing you to crop a current point in time")
         CreateToolTip(delay_clip_mode_button,   "Delayed Mode: \nTakes a screenshot and holds it in memory, upon the Clip Hotkey again display the screenshot allowing you to crop it")
         CreateToolTip(multi_clip_mode_button,   "Lets you clip with the same clipping window until you close it with Right Click")
         CreateToolTip(cursor_guidelines_button, "This toggles the visual pink lines when clipping")
-        CreateToolTip(use_win32_clipboard_copy, "Copy clip using win32clipboard \nThis is more flexable and faster")
+        CreateToolTip(use_win32_clipboard_copy, "Copy clip using win32clipboard \nWhen set to 0 clip will be copied using Alt+PrntScreen and then cropped\n(win32clipboard is recommended)")
         CreateToolTip(auto_copy_clip_button,    "Automatically copies the clip to your clipboard")
         CreateToolTip(auto_hide_clip_button,    "Automatically hides the clip in your task bar to keep it out of the way")
+        CreateToolTip(open_on_save_button,      "Automatically opens file explorer to the location of saved clips/gifs")
+        CreateToolTip(choose_border_color,      "Select the color of the clip outline and the guidelines shown when making a clip")
+        CreateToolTip(open_image_button,        "Open an image file and create a clip from it\n(transparent images will have the background be the border color)")
+        CreateToolTip(open_from_clipboard_button,"Create a clip from image byte data on clipboard if it exists")
 
 
         #***************** Labels *************. 
@@ -1628,11 +1665,11 @@ class snipping_tool():
         zoom_percent_label =        Label(settings_window_root, text = "Zoom Square Size")
         zoom_multiplyer_label =     Label(settings_window_root, text = "Zoom Multiplyer")
 
-        hotkey_1_label.grid             (column = 0, row = 1)
-        hotkey_2_label.grid             (column = 0, row = 2)
-        border_thiccness_label.grid     (column = 0, row = 4)
-        zoom_percent_label.grid         (column = 0, row = 3)
-        zoom_multiplyer_label.grid      (column = 2, row = 3)
+        hotkey_1_label.grid             (column = 0, row = 1, sticky = EW)
+        hotkey_2_label.grid             (column = 0, row = 2, sticky = EW, pady = (0,10))
+        border_thiccness_label.grid     (column = 0, row = 4, sticky = EW, pady = (0,10))
+        zoom_percent_label.grid         (column = 0, row = 3, sticky = EW)
+        zoom_multiplyer_label.grid      (column = 2, row = 3, sticky = EW)
    
         CreateToolTip(hotkey_1_label,           "Hotkey to make a clip")
         CreateToolTip(hotkey_2_label,           "Hotkey to make a gif")
@@ -1673,19 +1710,19 @@ class snipping_tool():
         zoom_percent_Combobox.set       (self.scale_percent)
         zoom_multiplyer_Combobox.set    (self.multiplyer)
 
-        hotkey_1_modifyer_1.grid        (column = 1, row = 1, pady = 5)
-        hotkey_1_modifyer_2.grid        (column = 2, row = 1, pady = 5, padx = 6)
-        hotkey_1_modifyer_3.grid        (column = 3, row = 1, pady = 5, padx = 6)
-        hotkey_1_key.grid               (column = 4, row = 1, pady = 5)
+        hotkey_1_modifyer_1.grid        (column = 1, row = 1, sticky = EW)
+        hotkey_1_modifyer_2.grid        (column = 2, row = 1, sticky = EW)
+        hotkey_1_modifyer_3.grid        (column = 3, row = 1, sticky = EW)
+        hotkey_1_key.grid               (column = 4, row = 1, sticky = EW)
 
-        hotkey_2_modifyer_1.grid        (column = 1, row = 2, pady = 5)
-        hotkey_2_modifyer_2.grid        (column = 2, row = 2, pady = 5, padx = 6)
-        hotkey_2_modifyer_3.grid        (column = 3, row = 2, pady = 5, padx = 6)
-        hotkey_2_key.grid               (column = 4, row = 2, pady = 5)
+        hotkey_2_modifyer_1.grid        (column = 1, row = 2, sticky = EW, pady = (0,10))
+        hotkey_2_modifyer_2.grid        (column = 2, row = 2, sticky = EW, pady = (0,10))
+        hotkey_2_modifyer_3.grid        (column = 3, row = 2, sticky = EW, pady = (0,10))
+        hotkey_2_key.grid               (column = 4, row = 2, sticky = EW, pady = (0,10))
 
-        zoom_percent_Combobox.grid      (column = 1, row = 3, pady = 5)
-        zoom_multiplyer_Combobox.grid   (column = 3, row = 3, pady = 5)
-        border_thiccness_combobox.grid  (column = 1, row = 4)
+        zoom_percent_Combobox.grid      (column = 1, row = 3, sticky = EW)
+        zoom_multiplyer_Combobox.grid   (column = 3, row = 3, sticky = EW)
+        border_thiccness_combobox.grid  (column = 1, row = 4, sticky = EW, pady = (0,10))
 
         
 
@@ -1753,7 +1790,7 @@ class tray():
 
     #***************** Call create clip window *************. 
     def call_clipwin(self, systray):
-        self.clip_app.call_create_clip_window()
+        self.clip_app.on_activate_i()
 
     #***************** Call create gif window *************. 
     def call_gifwin(self, systray):
