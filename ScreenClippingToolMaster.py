@@ -344,7 +344,7 @@ class snipping_tool():
     def record_thread(self):
         if not self.record_on:
             if len(self.gif_bounds) == 4:
-                a = Thread(target = self.record, args = (self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3]))
+                a = Thread(target = self.record, args = ())
                 self.threads.append(a)
                 a.start()
 
@@ -386,24 +386,25 @@ class snipping_tool():
         
 
     #***************** Take rapid screenshots of selected area and stick them into an array *************. 
-    def record(self, x1, y1, x2, y2):
+    def record(self):
         self.record_on = True
-        monitor_ids = {} 
-        for i in get_monitors():
-            monitor_ids[windll.user32.MonitorFromPoint(i.x, i.y, 2)] = i # param_1 = monitor_x + 1,  param_2 = monitor_y,  param_3 [0], [1], [3] = monitor_default to null, monitor_default to primary, monitor_default to nearest 
+        #monitor_ids = {} 
+        #for i in get_monitors():
+        #    monitor_ids[windll.user32.MonitorFromPoint(i.x, i.y, 2)] = i # param_1 = monitor_x + 1,  param_2 = monitor_y,  param_3 [0], [1], [3] = monitor_default to null, monitor_default to primary, monitor_default to nearest 
         
-        print(f"\nstart monitor = [{self.monitorid}")
-        if self.monitorid in list(monitor_ids.keys()):# and self.end_monitorid in list(monitor_ids.keys()): 
+        print(f"\nstart monitor = {self.monitorid}")
+        #if self.monitorid in list(monitor_ids.keys()):# and self.end_monitorid in list(monitor_ids.keys()): 
             #if self.monitorid == self.end_monitorid:
-            monitor = monitor_ids[self.monitorid]
-            x1, y1, x2, y2 = int(x1 + monitor.x), int(y1 + monitor.y), int(x2 + monitor.x), int(y2 + monitor.y)
-            while self.record_on == True:
-                img = getRectAsImage((x1, y1, x2, y2))
-                self.gif.append(img)
-                del img
-                print('image taken')
-                time.sleep(0.05)
-            gc.collect()
+            #monitor = monitor_ids[self.monitorid]
+            #x1, y1, x2, y2 = int(monitor.x), int(monitor.y), int(monitor.x), int( monitor.y)
+        while self.record_on == True:
+            rct = (self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3])#rct = (self.gif_bounds[0] + x1, self.gif_bounds[1] + y1, self.gif_bounds[2] + x2, self.gif_bounds[3] + y2)
+            img = getRectAsImage(rct) #x1, y1, x2, y2 = self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[0]
+            self.gif.append(img)
+            del img
+            print('image taken at', rct)
+            time.sleep(0.05)
+        gc.collect()
 
 
 
@@ -665,8 +666,8 @@ class snipping_tool():
             gif_bounds = widget.find_withtag("gif_area")
             winx, winy = (event.widget.winfo_x() + 10,event.widget.winfo_y() + 33) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
             bounds = [i for i in widget.bbox(gif_bounds[0])]
-            self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2], winy + bounds[3]]
-            
+            self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-3, winy + bounds[3]-3] # idk why -3 makes it take pics inside the red border but it does
+            #print(self.gif_bounds)
 
         self.destroy_all(0)
 
@@ -683,16 +684,23 @@ class snipping_tool():
             x1, y1, x2, y2 = (int(self.curx), int(self.cury), int(self.start_x), int(self.start_y)) # Left Up
         print(f"({x1}, {y1}) x ({x2}, {y2}) --> {datetime.datetime.now()}")
 
-        self.gif_bounds.clear()
-        for i in [x1, y1, x2, y2]: self.gif_bounds.append(i)
+        
 
+        monitor_ids = {} 
+        for i in get_monitors():
+            monitor_ids[windll.user32.MonitorFromPoint(i.x, i.y, 2)] = i
+        monitor = monitor_ids[self.monitorid] 
+
+        self.gif_bounds.clear()
+        for i in [monitor.x + x1, monitor.y + y1, monitor.x + x2, monitor.y + y2]: self.gif_bounds.append(i)
+        print(self.gif_bounds)
         gif_area = Toplevel(root)
         gif_area.title("GifWindow")
         gif_area.minsize(x2-x1, y2-y1)
         gif_area.resizable(0,0)
         gif_area.attributes("-transparent", "blue")
         gif_area.attributes('-topmost', 'true')
-        gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1-9, y1-32))
+        gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1-9 + monitor.x, y1-32+ monitor.y))
 
         bg = Canvas(gif_area, bg="grey11", highlightthickness = 0)
         bg.pack(expand = True, fill = BOTH)
