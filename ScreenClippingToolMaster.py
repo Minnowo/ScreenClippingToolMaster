@@ -696,7 +696,7 @@ class Settings:
         print(img)
         if img:
             try:
-                self.show_clip_window(None, True, img)
+                self.snippingclass.show_clip_window(None, True, img)
             except Exception as e:
                 messagebox.showerror(title="", message=f"{e}", parent=root)
             finally:
@@ -712,7 +712,7 @@ class Settings:
             try:
                 with PIL.Image.open(img) as image:
                     print(image)
-                    self.show_clip_window(None, True, image)
+                    self.snippingclass.show_clip_window(None, True, image)
                 image.close()
             except Exception as e:
                 messagebox.showerror(title="", message=f"{e}", parent=root)
