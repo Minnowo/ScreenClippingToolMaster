@@ -737,17 +737,18 @@ class Settings:
 
 class Drawing_Settings:
 
-    def __init__(self, SnippingClass, win, canvas, startx = 0, starty = 0):
+    def __init__(self, win, canvas, line_width, brush_scale_factor, line_color, update_variable_function,startx = 0, starty = 0):
         self.combo_box = []
-        self.line_width = SnippingClass.line_width
-        self.brush_scale_factor = SnippingClass.brush_scale_factor
-        self.line_color = SnippingClass.line_color
-        self.draw = SnippingClass.draw
+        self.line_width = line_width
+        self.brush_scale_factor = brush_scale_factor
+        self.line_color = line_color
+        self.draw = 1
         self.old_x = None
         self.old_y = None
         self.startx = startx
         self.starty = starty
         self.parent = win
+        self.update_variable_function = update_variable_function
 
         self.mouse_rect = canvas.create_rectangle(0, 0, 0, 0,outline = get_complementary(self.line_color),tag = "mouse_cirlce")
 
@@ -774,30 +775,41 @@ class Drawing_Settings:
         self.drawing_root.geometry(f"+{startx}+{starty}")
         self.drawing_root.protocol("WM_DELETE_WINDOW", self.close)
 
-        draw_color =    Button(self.drawing_root, text = "LineColor", command = self.change_line_color)
-        clear =         Button(self.drawing_root, text = "Clear", command = self.clear)
-        self.paint_button =  Button(self.drawing_root, text = "Draw", command = self.enable_draw)
-        self.erase_button =  Button(self.drawing_root, text = "Erase", command = self.enable_erase)
+        draw_color =         Button(self.drawing_root, text = "LineColor", command = self.change_line_color)
+        clear =              Button(self.drawing_root, text = "Clear", command = self.clear)
+        self.paint_button =  Button(self.drawing_root, text = "Draw", command = self.enable_draw, highlightbackground = "#000000")
+        self.erase_button =  Button(self.drawing_root, text = "Erase", command = self.enable_erase, highlightbackground = "#000000")
+        save_settings_button=Button(self.drawing_root, text = "SaveSettings", command = self.save_settings)
 
-        line_width_combobox = ttk.Combobox(self.drawing_root, values = [i for i in range(1, 201)],  state='readonly')
+        draw_color.grid             (column = 0, row = 0, sticky = EW)
+        clear.grid                  (column = 0, row = 1, sticky = EW, columnspan = 2)
+        self.paint_button.grid      (column = 0, row = 5, sticky = EW, pady = (10,0))
+        self.erase_button.grid      (column = 1, row = 5, sticky = EW, pady = (10,0))
+        save_settings_button.grid   (column = 1, row = 0, sticky = EW)
+
+
+
+        line_width_combobox = ttk.Combobox(self.drawing_root, width = 12, values = [i for i in range(1, 201)],  state='readonly')
+        zoom_scale_combobox = ttk.Combobox(self.drawing_root, width = 12, values = [i for i in range(1, 21)],   state='readonly')
+
         self.combo_box.append(line_width_combobox)
-        line_width_combobox.set(self.line_width)
 
-        zoom_scale_combobox = ttk.Combobox(self.drawing_root, values = [i for i in range(1, 21)],  state='readonly')
+        line_width_combobox.set(self.line_width)
         zoom_scale_combobox.set(self.brush_scale_factor)
+
+        line_width_combobox.grid(column = 1, row = 3)
+        zoom_scale_combobox.grid(column = 1, row = 4)
+        
+
 
         line_thickness_label =  Label(self.drawing_root, text =  "Line Thickness")
         zoom_scale_label =      Label(self.drawing_root, text =  "Zoom Scale Factor")
 
-        draw_color.grid(column = 0, row = 0, sticky = EW)
-        clear.grid(column = 0, row = 1, sticky = EW, columnspan = 2)
         line_thickness_label.grid(column = 0, row = 3, pady = 2)
         zoom_scale_label.grid(column = 0, row = 4, pady = 2)
-        line_width_combobox.grid(column = 1, row = 3)
-        zoom_scale_combobox.grid(column = 1, row = 4)
+        
 
-        self.paint_button.grid(column = 0, row = 5)
-        self.erase_button.grid(column = 1, row = 5)
+        
 
         line_width_combobox.bind("<<ComboboxSelected>>", self.setlinewidth)
         zoom_scale_combobox.bind("<<ComboboxSelected>>", self.setscale)
@@ -806,6 +818,9 @@ class Drawing_Settings:
             self.enable_draw()
         else:
             self.enable_erase()
+
+    def save_settings(self):
+        self.update_variable_function(self, 1)
 
     def close(self):
         if self.parent["cursor"] == "arrow":
@@ -922,12 +937,8 @@ class snipping_tool():
         self.curx = None            # After releasing x
         self.cury = None            # After releasing y
         self.monitorid = None       # Monitor id of the monitor you started on
-        #self.end_monitorid = None   # Monitor id of the monitor you ended on
         self.zoom_image = None      # Image displayed when you zoom in 
         self.img = None             # Temporary image that is shown when you zoom in
-        self.old_x = None
-        self.old_y = None
-        self.mouse_rect = None
 
         try:           
             with open("settings.json", "r") as settings_file:
@@ -997,21 +1008,11 @@ class snipping_tool():
             except:pass
 
         self.zoomcycle = 0          # How far in you are zoomed
-        self.hwnd = root.winfo_id()
-        self.draw = 1
-        
+        self.hwnd = root.winfo_id() 
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
-        self.lines_list = {}
-        
+        self.lines_list = {} 
         self.threads = []           # Keep track of used threads to join back later
-        self.drawing_combo_box = []
 
-        #self.stop_drag = 0
-        #self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
-        #self.adjust_vals = {"ghost border" : 10, "title bar" : 33, "trial n err" : 3}
-        #self.gif = []               # Keep all the pictures taken in gif mode
-        #self.gif_bounds = []        # keep track of x and y coords for gif area 
-        
         print("snipping tool started")
 
         #***************** Hide root window *************. 
@@ -1422,199 +1423,12 @@ class snipping_tool():
             messagebox.showerror(title="", message="error with ocr:\n {}".format(e), parent=root)
 
 
-    #def paint(self, event, win):
-    #    self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
-    #    if self.draw:
-    #        if self.old_x and self.old_y:
-    #            win.create_line(self.old_x, self.old_y, event.x, event.y, width=self.line_width, fill=self.line_color, capstyle=ROUND, smooth=TRUE, splinesteps=36, tags = "<drawnlines>")
-    #    else:
-    #        coords = win.coords("mouse_cirlce")
-    #        result = win.find_overlapping(coords[0], coords[1], coords[2], coords[3])
-    #        for i in result:
-    #            if  str(win.itemcget(i, "tags")).find("<drawnlines>") != -1:
-    #                win.delete(i)
-
-    #    win.tag_raise("mouse_cirlce")
-    #    self.old_x = event.x
-    #    self.old_y = event.y
-
-    #def reset(self, event):
-    #    self.old_x, self.old_y = None, None
-
-    #def brush_size(self, event):
-    #    if (event.delta > 0):
-    #        self.line_width += self.brush_scale_factor if self.line_width + self.brush_scale_factor <= 200 else 0
-    #    if (event.delta < 0):
-    #        self.line_width -= self.brush_scale_factor if self.line_width - self.brush_scale_factor >= 1 else 0
-
-    #    self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
-
-    #    if len(self.drawing_combo_box) > 0:
-    #        for i in self.drawing_combo_box:
-    #            try:
-    #                i.set(self.line_width)
-    #            except:
-    #                self.drawing_combo_box.remove(i)
-
-    
-
-
-
-    #def create_drawing_settings_win(self, win, startx = None, starty = None):
-    #    Drawing_Settings(self, win, startx, starty)
-        #for widget in root.winfo_children():
-        #    if isinstance(widget, Toplevel):
-        #        if str(widget.title()).find("DrawingSettings") != -1:
-        #            widget.destroy()
-
-        #drawing_root = Toplevel(win)
-
-        #def change_line_color():
-        #    a = askcolor(color = self.line_color)
-        #    if a[1]:
-        #        self.line_color = a[1]
-        #        print(f"line color = {self.line_color}")
-
-        #def clear(*args):
-        #    def update(event, canvas, color):
-        #        try:
-        #            canvas.config(bg = color)
-        #        except:
-        #            event.widget.pack_forget()
-
-        #    for widget in drawing_root.winfo_children():
-        #        if isinstance(widget, Toplevel):
-        #            if str(widget.title()).find("ClearMenu") != -1:
-        #                widget.destroy()
-
-
-        #    children = [i for i in root.winfo_children() if isinstance(i, Toplevel)]
-            
-        #    clear_menu = Toplevel(drawing_root)
-        #    clear_menu.title("ClearMenu")
-        #    clear_menu.attributes("-topmost", True)
-        #    clear_menu.lift()
-        #    clear_menu.resizable(0,0)
-        #    clear_menu.minsize(260, 20)
-
-        #    if startx != None and starty != None: 
-        #        clear_menu.geometry(f"+{startx}+{starty}")
-
-        #    for i in children:
-        #        for x in i.winfo_children():
-        #            if isinstance(x, Canvas):
-        #                #print(x, x["bg"])
-        #                button = Button(clear_menu, text = i.title(), command = lambda canvas = x, tag = "<drawnlines>" : canvas.delete(tag))
-        #                button.pack()
-        #                button.bind("<Enter>", lambda event, canvas = x, color = get_complementary(x["bg"]) : update(event, canvas, color))
-        #                button.bind("<Leave>", lambda event, canvas = x, color = x["bg"] : update(event, canvas, color))
-
-        #def enable_draw(*args):
-        #    self.draw = 1
-        #    paint_button.config(relief= SUNKEN)
-        #    erase_button.config(relief = RAISED)
-
-        #def enable_erase(*args):
-        #    self.draw = 0
-        #    paint_button.config(relief= RAISED)
-        #    erase_button.config(relief = SUNKEN)
-
-        #def setlinewidth(event):
-        #    self.line_width = int(event.widget.get())
-
-
-        #def setscale(event):
-        #    self.brush_scale_factor = int(event.widget.get())
-
-
-        ##drawing_root = Toplevel(win)
-        #drawing_root.title("DrawingSettings")
-        
-        #if startx != None and starty != None : 
-        #    drawing_root.geometry(f"+{startx}+{starty}")
-
-        #drawing_root.minsize(260, 90) 
-        #drawing_root.attributes('-topmost', 'true')
-
-        #draw_color =    Button(drawing_root, text = "LineColor", command = change_line_color)
-        #clear =         Button(drawing_root, text = "Clear", command = clear)
-        #paint_button =  Button(drawing_root, text = "Draw", command = enable_draw)
-        #erase_button =  Button(drawing_root, text = "Erase", command = enable_erase)
-
-        #line_width_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 201)],  state='readonly')
-        #self.drawing_combo_box.append(line_width_combobox)
-        #line_width_combobox.set(self.line_width)
-
-        #zoom_scale_combobox = ttk.Combobox(drawing_root, values = [i for i in range(1, 21)],  state='readonly')
-        #zoom_scale_combobox.set(self.brush_scale_factor)
-
-        #line_thickness_label =  Label(drawing_root, text =  "Line Thickness")
-        #zoom_scale_label =      Label(drawing_root, text =  "Zoom Scale Factor")
-
-        #draw_color.grid(column = 0, row = 0, sticky = EW)
-        #clear.grid(column = 0, row = 1, sticky = EW, columnspan = 2)
-        #line_thickness_label.grid(column = 0, row = 3, pady = 2)
-        #zoom_scale_label.grid(column = 0, row = 4, pady = 2)
-        #line_width_combobox.grid(column = 1, row = 3)
-        #zoom_scale_combobox.grid(column = 1, row = 4)
-
-        #paint_button.grid(column = 0, row = 5)
-        #erase_button.grid(column = 1, row = 5)
-
-        #line_width_combobox.bind("<<ComboboxSelected>>", setlinewidth)
-        #zoom_scale_combobox.bind("<<ComboboxSelected>>", setscale)
-
-        #if self.draw:
-        #    enable_draw()
-        #else:
-        #    enable_erase()
-
-    #def adjust_mouse_rect(self, x, y, width, canvas, rect):
-    #    x1 = x + width
-    #    y1 = y + width
-    #    x = x - width
-    #    y = y - width
-    #    canvas.coords(rect, x, y, x1, y1)
-    #    if canvas.itemcget(rect, "state") == "hidden":
-    #        canvas.itemconfig("mouse_cirlce", state = "normal")
-    #    #canvas.itemconfig(rect, outline='red')
-
-    #def follow_mouse(self, event):
-    #        self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
 
     def enable_drawing(self,win):
-        #def change_rect_color(event):
-        #    event.widget.itemconfig(self.mouse_rect, outline= get_complementary(self.line_color))
-        #    event.widget.focus_set()
-
         children = win.winfo_children() # [1] == the canvas with the image
-        if win["cursor"] == "arrow": # not in drawing mode
-            #self.mouse_rect = children[1].create_rectangle(0, 0, 0, 0,outline = get_complementary(self.line_color),tag = "mouse_cirlce")
-
-            #win.attributes('-topmost', 'false')
-            #win.overrideredirect(0)
-
-            #children[1].unbind("<B1-Motion>")
-            #win.unbind("<MouseWheel>")
-            #win.unbind("<Motion>")
-            #children[1].unbind("<Button-1>")
-
-            #children[1].bind("<Button-1>", change_rect_color)
-            #children[1].bind('<B1-Motion>', lambda event, win = children[1] : self.paint(event, win))
-            #children[1].bind('<ButtonRelease-1>', self.reset)
-            #children[1].bind("<Motion>", self.follow_mouse)
-            #win.bind("<MouseWheel>", self.brush_size)
-            #win.config(cursor = "left_ptr")
-
-            Drawing_Settings(self, win, children[1], win.winfo_x(), win.winfo_y())
-            #self.create_drawing_settings_win(root, win.winfo_x(), win.winfo_y())
-            
+        if win["cursor"] == "arrow": # not in drawing mode 
+            Drawing_Settings(win, children[1], self.line_width, self.brush_scale_factor, self.line_color, self.save_settings, win.winfo_x(), win.winfo_y())
         else:                       # in drawing mode
-            for widget in root.winfo_children():
-                if isinstance(widget, Toplevel):
-                    if str(widget.title()).find("DrawingSettings") != -1:
-                        widget.destroy()
-
             children[1].delete("mouse_cirlce")
             win.attributes('-topmost', 'true')
             win.overrideredirect(1)
@@ -1831,24 +1645,29 @@ class snipping_tool():
     #*****************                           *************. 
 
     # call from the settings window class to update all the variables in the snipping class 
-    def save_settings(self, val):
-        self.scale_percent = val.scale_percent
-        self.multiplyer = val.multiplyer
-        self.cursor_lines = val.cursor_lines
-        self.default_alpha = val.default_alpha
-        self.border_color = val.border_color
-        self.border_thiccness = val.border_thiccness
-        self.auto_copy_image = val.auto_copy_image
-        self.auto_hide_clip = val.auto_hide_clip
-        self.snapshot = val.snapshot
-        self.delayed_clip = val.delayed_clip
-        self.multi_clip =  val.multi_clip
-        self.win32clipboard = val.win32clipboard
-        self.hotkey_visual_in_settings = val.hotkey_visual_in_settings
-        self.open_on_save = val.open_on_save
-        self.tray.update_hov_text(self.tray.sysTrayIcon)
-        self.clip_hotkey = val.clip_hotkey
-        self.gif_hotkey = val.gif_hotkey
+    def save_settings(self, val, settings_number = 0):
+        if settings_number == 0:
+            self.scale_percent = val.scale_percent
+            self.multiplyer = val.multiplyer
+            self.cursor_lines = val.cursor_lines
+            self.default_alpha = val.default_alpha
+            self.border_color = val.border_color
+            self.border_thiccness = val.border_thiccness
+            self.auto_copy_image = val.auto_copy_image
+            self.auto_hide_clip = val.auto_hide_clip
+            self.snapshot = val.snapshot
+            self.delayed_clip = val.delayed_clip
+            self.multi_clip =  val.multi_clip
+            self.win32clipboard = val.win32clipboard
+            self.hotkey_visual_in_settings = val.hotkey_visual_in_settings
+            self.open_on_save = val.open_on_save
+            self.tray.update_hov_text(self.tray.sysTrayIcon)
+            self.clip_hotkey = val.clip_hotkey
+            self.gif_hotkey = val.gif_hotkey
+        elif settings_number:
+            self.line_width = val.line_width
+            self.brush_scale_factor = val.brush_scale_factor
+            self.line_color = val.line_color
 
 
 
