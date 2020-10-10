@@ -368,7 +368,368 @@ class Create_gif:
         except:
             return
 
+ 
+class Settings:
     
+    def __init__(self, SnippingClass):
+        self.snippingclass = SnippingClass
+        self.auto_copy_image = SnippingClass.auto_copy_image
+        self.auto_hide_clip = SnippingClass.auto_hide_clip
+        self.snapshot = SnippingClass.snapshot
+        self.delayed_clip = SnippingClass.delayed_clip
+        self.multi_clip = SnippingClass.multi_clip
+        self.cursor_lines = SnippingClass.cursor_lines
+        self.win32clipboard = SnippingClass.win32clipboard
+        self.open_on_save = SnippingClass.open_on_save
+        self.hotkey_visual_in_settings = SnippingClass.hotkey_visual_in_settings
+        self.border_thiccness = SnippingClass.border_thiccness
+        self.scale_percent = SnippingClass.scale_percent
+        self.multiplyer = SnippingClass.multiplyer
+        self.default_alpha = SnippingClass.default_alpha
+        self.border_color = SnippingClass.border_color
+
+        self.settings_window_root = Toplevel(root)
+        self.settings_window_root.title("Settings")
+        self.settings_window_root.attributes("-topmost", True)
+        self.settings_window_root.lift()
+        self.settings_window_root.resizable(0,0)
+        
+        #***************** Buttons *************. 
+        save_changes =                   Button(self.settings_window_root, text =  "Save Changes",                        command = self.save_settings)
+        reset_changes =                  Button(self.settings_window_root, text =  "Reset Changes",                       )#command = self.settings_window)
+        restore_deault_button =          Button(self.settings_window_root, text =  "Restore Default",                     command = self.restore_default)
+        show_console_button =            Button(self.settings_window_root, text =  "ShowConsole",                         command = self.show_console)
+        choose_border_color =            Button(self.settings_window_root, text =  "Border/LineColor",                    command = self.change_border)
+        open_image_button =              Button(self.settings_window_root, text =  "OpenImage",                           command = self.open_image) 
+        open_from_clipboard_button =     Button(self.settings_window_root, text =  "OpenFromClipboard",                   command = self.clip_from_clipboard) 
+        create_save_file_button =        Button(self.settings_window_root, text =  "Create Save",                         command = self.create_save_file)
+
+        self.auto_copy_clip_button =     Button(self.settings_window_root, text = f"AutoCopyClip {self.auto_copy_image}", command = self.change_toggle_auto_copy)
+        self.auto_hide_clip_button =     Button(self.settings_window_root, text = f"AutoHideClip {self.auto_hide_clip}",  command = self.change_toggle_auto_hide)
+        self.snapshot_mode_button =      Button(self.settings_window_root, text = f"SnapShotMode {self.snapshot}",        command = self.change_snapshot)
+        self.delay_clip_mode_button =    Button(self.settings_window_root, text = f"DelayMode {self.delayed_clip}",       command = self.change_delay_clip)
+        self.multi_clip_mode_button =    Button(self.settings_window_root, text = f"MultiMode {self.multi_clip}",         command = self.change_multi_mode)
+        self.cursor_guidelines_button =  Button(self.settings_window_root, text = f"CursorLines {self.cursor_lines}",     command = self.change_lines)
+        self.use_win32_clipboard_copy =  Button(self.settings_window_root, text = f"Win32clipboard {self.win32clipboard}",command = self.change_win32_clip)
+        self.open_on_save_button =       Button(self.settings_window_root, text = f"AutoOpenOnSave {self.open_on_save}",  command = self.change_open_on_save)
+
+        # row 5 is for modes
+        self.snapshot_mode_button.grid       (column = 0, row = 5, sticky = EW)
+        self.delay_clip_mode_button.grid     (column = 1, row = 5, sticky = EW)
+        self.multi_clip_mode_button.grid     (column = 2, row = 5, sticky = EW)        
+        self.use_win32_clipboard_copy.grid   (column = 3, row = 5, sticky = EW)
+
+        # row 6 for auto features 
+        self.auto_copy_clip_button.grid      (column = 0, row = 6, sticky = EW)
+        self.auto_hide_clip_button.grid      (column = 1, row = 6, sticky = EW)
+        self.open_on_save_button.grid        (column = 2, row = 6, sticky = EW)
+
+        # row 7 for other
+        self.cursor_guidelines_button.grid   (column = 0, row = 7, sticky = EW)
+        choose_border_color.grid             (column = 1, row = 7, sticky = EW)
+        open_image_button.grid               (column = 2, row = 7, sticky = EW)
+        open_from_clipboard_button.grid      (column = 3, row = 7, sticky = EW)
+
+        # row 8 for function buttons
+        save_changes.grid               (column = 0, row = 8, sticky = EW)
+        reset_changes.grid              (column = 1, row = 8, sticky = EW)
+        restore_deault_button.grid      (column = 2, row = 8, sticky = EW)
+        show_console_button.grid        (column = 3, row = 8, sticky = EW)
+        create_save_file_button.grid    (column = 4, row = 8, sticky = EW)
+
+        CreateToolTip(self.snapshot_mode_button,     "Snapshot Mode: \nFreezes your screen, allowing you to crop a current point in time")
+        CreateToolTip(self.delay_clip_mode_button,   "Delayed Mode: \nTakes a screenshot and holds it in memory, upon the Clip Hotkey again display the screenshot allowing you to crop it")
+        CreateToolTip(self.multi_clip_mode_button,   "Lets you clip with the same clipping window until you close it with Right Click")
+        CreateToolTip(self.cursor_guidelines_button, "This toggles the visual pink lines when clipping")
+        CreateToolTip(self.use_win32_clipboard_copy, "Copy clip using win32clipboard \nWhen set to 0 clip will be copied using Alt+PrntScreen and then cropped\n(win32clipboard is recommended)")
+        CreateToolTip(self.auto_copy_clip_button,    "Automatically copies the clip to your clipboard")
+        CreateToolTip(self.auto_hide_clip_button,    "Automatically hides the clip in your task bar to keep it out of the way")
+        CreateToolTip(self.open_on_save_button,      "Automatically opens file explorer to the location of saved clips/gifs")
+        CreateToolTip(choose_border_color,           "Select the color of the clip outline and the guidelines shown when making a clip")
+        CreateToolTip(open_image_button,             "Open an image file and create a clip from it\n(transparent images will have the background be the border color)")
+        CreateToolTip(open_from_clipboard_button,    "Create a clip from image byte data on clipboard if it exists")
+
+
+        #***************** Labels *************. 
+        hotkey_1_label =            Label(self.settings_window_root, text = "Clip Hotkey")
+        hotkey_2_label =            Label(self.settings_window_root, text = "Gif Hotkey")
+        border_thiccness_label =    Label(self.settings_window_root, text = "Clip Border Thickness")
+        zoom_percent_label =        Label(self.settings_window_root, text = "Zoom Square Size")
+        zoom_multiplyer_label =     Label(self.settings_window_root, text = "Zoom Multiplyer")
+
+        hotkey_1_label.grid             (column = 0, row = 1, sticky = EW)
+        hotkey_2_label.grid             (column = 0, row = 2, sticky = EW, pady = (0,10))
+        border_thiccness_label.grid     (column = 0, row = 4, sticky = EW, pady = (0,10))
+        zoom_percent_label.grid         (column = 0, row = 3, sticky = EW)
+        zoom_multiplyer_label.grid      (column = 2, row = 3, sticky = EW)
+   
+        CreateToolTip(hotkey_1_label,           "Hotkey to make a clip")
+        CreateToolTip(hotkey_2_label,           "Hotkey to make a gif")
+        CreateToolTip(border_thiccness_label,   "Thickness of border around clip") 
+        CreateToolTip(zoom_percent_label,       "Size of zoom box \nLower = Smaller \nHigher = Bigger \nAbove 1.25 can be lagy")
+        CreateToolTip(zoom_multiplyer_label,    "How far in the zoom starts \nLower = More Zoomed \nHigher = Less Zoomed")
+
+
+        #***************** ComboBox *************. 
+        MODIFIERS = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"]
+        KEYS = list(Global_hotkeys.PYNPUT_TO_VK.keys())
+
+        self.hotkey_1_modifyer_1 =   ttk.Combobox(self.settings_window_root,  values = MODIFIERS, width=12,  state='readonly')
+        self.hotkey_1_modifyer_2 =   ttk.Combobox(self.settings_window_root,  values = MODIFIERS, width=12,  state='readonly')
+        self.hotkey_1_modifyer_3 =   ttk.Combobox(self.settings_window_root,  values = MODIFIERS, width=12,  state='readonly')
+        self.hotkey_1_key =          ttk.Combobox(self.settings_window_root,  values = KEYS,      width=12,  state='readonly')
+
+        self.hotkey_2_modifyer_1 =   ttk.Combobox(self.settings_window_root,  values = MODIFIERS, width=12,  state='readonly')
+        self.hotkey_2_modifyer_2 =   ttk.Combobox(self.settings_window_root,  values = MODIFIERS, width=12,  state='readonly')
+        self.hotkey_2_modifyer_3 =   ttk.Combobox(self.settings_window_root,  values = MODIFIERS, width=12,  state='readonly')
+        self.hotkey_2_key =          ttk.Combobox(self.settings_window_root,  values = KEYS,      width=12,  state='readonly')
+        
+        self.border_thiccness_combobox = ttk.Combobox(self.settings_window_root,  values = [i for i in range(0, 100)],                                        width=4,  state='readonly')
+        self.zoom_percent_Combobox =     ttk.Combobox(self.settings_window_root,  values = [round(x, 3) for x in numpy.arange(0, 2, 0.01) if x >= 0.03],      width=5,  state='readonly')
+        self.zoom_multiplyer_Combobox =  ttk.Combobox(self.settings_window_root,  values = [round(x, 3) for x in numpy.arange(0, 0.2, 0.01) if x >= 0.03],    width=5,  state='readonly')
+        
+        self.hotkey_1_modifyer_1.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_1"])
+        self.hotkey_1_modifyer_2.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_2"])
+        self.hotkey_1_modifyer_3.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_3"])
+        self.hotkey_1_key.set                (self.hotkey_visual_in_settings["hotkey_1_key"])
+
+        self.hotkey_2_modifyer_1.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_1"])
+        self.hotkey_2_modifyer_2.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_2"])        
+        self.hotkey_2_modifyer_3.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_3"])
+        self.hotkey_2_key.set                (self.hotkey_visual_in_settings["hotkey_2_key"])
+
+        self.border_thiccness_combobox.set   (self.border_thiccness)
+        self.zoom_percent_Combobox.set       (self.scale_percent)
+        self.zoom_multiplyer_Combobox.set    (self.multiplyer)
+
+        self.hotkey_1_modifyer_1.grid        (column = 1, row = 1, sticky = EW)
+        self.hotkey_1_modifyer_2.grid        (column = 2, row = 1, sticky = EW)
+        self.hotkey_1_modifyer_3.grid        (column = 3, row = 1, sticky = EW)
+        self.hotkey_1_key.grid               (column = 4, row = 1, sticky = EW)
+
+        self.hotkey_2_modifyer_1.grid        (column = 1, row = 2, sticky = EW, pady = (0,10))
+        self.hotkey_2_modifyer_2.grid        (column = 2, row = 2, sticky = EW, pady = (0,10))
+        self.hotkey_2_modifyer_3.grid        (column = 3, row = 2, sticky = EW, pady = (0,10))
+        self.hotkey_2_key.grid               (column = 4, row = 2, sticky = EW, pady = (0,10))
+
+        self.zoom_percent_Combobox.grid      (column = 1, row = 3, sticky = EW)
+        self.zoom_multiplyer_Combobox.grid   (column = 3, row = 3, sticky = EW)
+        self.border_thiccness_combobox.grid  (column = 1, row = 4, sticky = EW, pady = (0,10))
+
+        
+
+        self.settings_window_root.update()
+        xloc = (root.winfo_screenwidth() // 2) - (self.settings_window_root.winfo_width() // 2)  
+        yloc = (root.winfo_screenheight() // 2) - (self.settings_window_root.winfo_height() // 2)
+        print(xloc, yloc)
+        self.settings_window_root.geometry(f"+{xloc}+{yloc}")
+        
+
+    def save_settings(self, *args):
+
+            self.snippingclass.scale_percent = float(self.zoom_percent_Combobox.get())
+            self.snippingclass.multiplyer = float(self.zoom_multiplyer_Combobox.get())
+            self.snippingclass.border_thiccness = int(self.border_thiccness_combobox.get())
+
+            correct_modifyers_for_hotkey = {"WindowsKey" : "<cmd>", "Alt" : "<alt>", "Ctrl" : "<ctrl>", "Shift" : "<shift>"}
+
+            hotkey1 = list( dict.fromkeys([i for i in [self.hotkey_1_modifyer_1.get(), self.hotkey_1_modifyer_2.get(), self.hotkey_1_modifyer_3.get(), self.hotkey_1_key.get()] if i != "None"]))
+            hotkey2 = list( dict.fromkeys([i for i in [self.hotkey_2_modifyer_1.get(), self.hotkey_2_modifyer_2.get(), self.hotkey_2_modifyer_3.get(), self.hotkey_2_key.get()] if i != "None"]))
+
+            hotkey1_formated = [correct_modifyers_for_hotkey[i] for i in hotkey1 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
+            hotkey2_formated = [correct_modifyers_for_hotkey[i] for i in hotkey2 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
+
+            hotkey1_formated.append(hotkey1[-1].lower())
+            hotkey2_formated.append(hotkey2[-1].lower())
+
+            final_hotkey1 = "+".join(hotkey1_formated)
+            final_hotkey2 = "+".join(hotkey2_formated)
+
+            print(final_hotkey1)
+            print(final_hotkey2)
+
+            if final_hotkey1 != self.hotkey_visual_in_settings["current_hotkey_1"]:
+                del hotkey1_formated[-1]
+                try:
+                    Global_hotkeys.remove_hotkey(self.snippingclass.hwnd, self.snippingclass.clip_hotkey[3], self.snippingclass.clip_hotkey[0]) 
+                    self.snippingclass.clip_hotkey =  Global_hotkeys.create_hotkey(self.snippingclass.hwnd, 0, hotkey1_formated, hotkey1[-1].lower(), self.snippingclass.on_activate_i) 
+                    print(f"New hotkey set for Standard mode, {final_hotkey1}")
+                except Exception as e:print(e)
+
+            if final_hotkey2 != self.hotkey_visual_in_settings["current_hotkey_2"]:
+                del hotkey2_formated[-1]
+                try:
+                    Global_hotkeys.remove_hotkey(self.snippingclass.hwnd, self.snippingclass.gif_hotkey[3], self.snippingclass.gif_hotkey[0]) 
+                    self.snippingclass.gif_hotkey =  Global_hotkeys.create_hotkey(self.snippingclass.hwnd, 1, hotkey2_formated, hotkey2[-1].lower(), self.snippingclass.on_activate_gif)
+                    print(f"New hotkey set for Gif mode, {final_hotkey2}")
+                except Exception as e:print(e)
+
+            
+
+            self.snippingclass.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : final_hotkey1,
+                                                            "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : final_hotkey2}       
+            self.snippingclass.save_settings(self)
+
+
+
+    def change_snapshot(self, *args):
+        self.snapshot = 1 - self.snapshot # Toggle from 0 to 1 and 1 to 0
+        if self.snapshot: 
+            self.delayed_clip = 0
+            self.default_alpha = 1
+        else: self.default_alpha = 0.3
+        print(f"snapshot mode set: {self.snapshot}")
+        #SnippingClass.tray.update_hov_text(SnippingClass.tray.sysTrayIcon)
+        self.snapshot_mode_button.config(text = f"SnapShotMode {self.snapshot}")
+        self.delay_clip_mode_button.config(text = f"DelayMode {self.delayed_clip}")
+
+    def change_delay_clip(self, *args):
+        self.delayed_clip = 1 - self.delayed_clip # Toggle from 0 to 1 and 1 to 0
+        if self.delayed_clip: 
+            self.snapshot = 0
+            self.default_alpha = 1
+        else: self.default_alpha = 0.3
+        print(f"delayed mode set: {self.delayed_clip}")
+        #self.tray.update_hov_text(self.tray.sysTrayIcon)
+        self.delay_clip_mode_button.config(text = f"DelayMode {self.delayed_clip}")
+        self.snapshot_mode_button.config(text = f"SnapShotMode {self.snapshot}")
+
+    def change_lines(self, *args):
+        self.cursor_lines = 1 - self.cursor_lines # Toggle from 0 to 1 and 1 to 0
+        print(f"cursor lines set: {self.cursor_lines}")
+        self.cursor_guidelines_button.config(text = f"CursorLines {self.cursor_lines}")
+
+    def ask_toggle_auto_hide(self):
+        a = messagebox.askquestion(title = "", message = "would you like to enable autohide clips to keep them out of the way when clipping?", parent = root)
+        if a == "yes": self.change_toggle_auto_hide()
+
+    def change_multi_mode(self, *args):
+        self.multi_clip = 1 - self.multi_clip # Toggle from 0 to 1 and 1 to 0
+        print(f"multi clip mode set: {self.multi_clip}")
+        #self.tray.update_hov_text(self.tray.sysTrayIcon)
+        if self.multi_clip and not self.auto_hide_clip: root.after(0, self.ask_toggle_auto_hide)
+        self.multi_clip_mode_button.config(text = f"MultiMode {self.multi_clip}")
+
+    def change_win32_clip(self, *args):
+        self.win32clipboard = 1 - self.win32clipboard # Toggle from 0 to 1 and 1 to 0
+        print(f"win32clipboard set: {self.win32clipboard}")
+        self.use_win32_clipboard_copy.config(text = f"Win32clipboard {self.win32clipboard}")
+            
+    def change_toggle_auto_copy(self, *args):
+        self.auto_copy_image = 1 - self.auto_copy_image
+        print(f"auto copy set : {self.auto_copy_image}")
+        self.auto_copy_clip_button.config(text = f"AutoCopyClip {self.auto_copy_image}")
+
+    def change_toggle_auto_hide(self, *args):
+        self.auto_hide_clip = 1 - self.auto_hide_clip
+        print(f"auto hide set : {self.auto_hide_clip}")
+        self.auto_hide_clip_button.config(text = f"AutoHideClip {self.auto_hide_clip}")
+
+    def change_open_on_save(self, *args):
+        self.open_on_save = 1 - self.open_on_save
+        print(f"open_on_save set : {self.open_on_save}")
+        self.open_on_save_button.config(text = f"AutoOpenOnSave {self.open_on_save}")
+
+    def show_console(self, *args):
+        PrintLogger.consolewin(root)
+        print("Created by Minnowo")
+        print("Github: https://github.com/Minnowo")
+        print("Discord: https://discord.gg/qznYCXz")
+
+
+    def restore_default(self, *args):
+        self.scale_percent = 0.35
+        self.multiplyer = 0.08
+        self.snapshot = 0
+        self.delayed_clip = 0
+        self.multi_clip = 0
+        self.auto_copy_image = 0
+        self.auto_hide_clip = 0
+        self.zoomcycle = 0
+        self.cursor_lines = 1
+        self.default_alpha = 0.3
+        self.win32clipboard = 1
+        self.border_color = "#ff08ff"
+        self.border_thiccness = 1
+        self.open_on_save = 1
+
+
+        if self.hotkey_visual_in_settings["current_hotkey_1"] != '<cmd>+z':
+            try:
+                Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0])
+            except Exception as e:print(e)
+
+            try:
+                self.clip_hotkey = Global_hotkeys.create_hotkey(self.hwnd, 0, ["<cmd>"], "z", self.on_activate_i) 
+                print("Hotkey 1 has been reset")
+            except Exception as e:print(e)
+
+
+        if self.hotkey_visual_in_settings["current_hotkey_2"] != '<cmd>+c':
+            try:
+                Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) 
+            except Exception as e:print(e)
+
+            try:
+                self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, ["<cmd>"], "c", self.on_activate_gif) 
+                print("Hotkey 2 has been reset")
+            except Exception as e:print(e)
+
+
+        self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
+                                            "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1,}
+        self.settings_window()
+
+
+    def change_border(self, *args):
+        a = askcolor(color = self.border_color)
+        if a[1]:
+            self.border_color = a[1]
+            print(f"clip border color = {self.border_color}")
+
+
+    def clip_from_clipboard(self, *args):
+        img = ImageGrab.grabclipboard()
+        print(img)
+        if img:
+            try:
+                self.show_clip_window(None, True, img)
+            except Exception as e:
+                messagebox.showerror(title="", message=f"{e}", parent=root)
+            finally:
+                del img
+                gc.collect()
+        else:
+            messagebox.showerror(title="", message="No image on clipboard", parent=root)
+
+    def open_image(self, *args):
+        img = askopenfilename(parent=root)
+
+        if img:
+            try:
+                with PIL.Image.open(img) as image:
+                    print(image)
+                    self.show_clip_window(None, True, image)
+                image.close()
+            except Exception as e:
+                messagebox.showerror(title="", message=f"{e}", parent=root)
+            finally:
+                del image, img
+                gc.collect()
+
+
+    def create_save_file(self, *args):
+        with open("settings.json", "w") as save_file:
+            settings = {"scale_percent"  : self.scale_percent,  "zoom_multiplyer" : self.multiplyer,   "snapshot_mode"      : self.snapshot,
+                        "delayed_mode"   : self.delayed_clip,   "multi_clip"      : self.multi_clip,   "auto_copy_image"    : self.auto_copy_image,
+                        "auto_hide_clip" : self.auto_hide_clip, "cursor_lines"    : self.cursor_lines, "default_alpha"      : self.default_alpha,
+                        "win32clipboard" : self.win32clipboard, "border_color"    : self.border_color, "border_thiccness"   : self.border_thiccness,
+                        "line_width"     : self.line_width,     "line_color"      : self.line_color,   "brush_scale_factor" : self.brush_scale_factor, 
+                        "open_on_save"   : self.open_on_save,
+                        "hotkeys"        : self.hotkey_visual_in_settings}
+            save_file.write(json.dumps(settings,  indent=3))
+            save_file.close()
+            print("\n\n", json.dumps(settings,  indent=3), "\n\n")
 
 class snipping_tool():
 
@@ -1287,65 +1648,81 @@ class snipping_tool():
     #***************** Other functions *************. 
     #*****************                           *************. 
 
+    def save_settings(self, val):
+        self.scale_percent = val.scale_percent
+        self.multiplyer = val.multiplyer
+        self.cursor_lines = val.cursor_lines
+        self.default_alpha = val.default_alpha
+        self.border_color = val.border_color
+        self.border_thiccness = val.border_thiccness
+        self.auto_copy_image = val.auto_copy_image
+        self.auto_hide_clip = val.auto_hide_clip
+        self.snapshot = val.snapshot
+        self.delayed_clip = val.delayed_clip
+        self.multi_clip =  val.multi_clip
+        self.win32clipboard = val.win32clipboard
+        self.hotkey_visual_in_settings = val.hotkey_visual_in_settings
+        self.open_on_save = val.open_on_save
+        self.tray.update_hov_text(self.tray.sysTrayIcon)
 
     #***************** Toggle snapshot mode *************. 
-    def toggle_snapshot_mode(self):
-        self.snapshot = 1 - self.snapshot # Toggle from 0 to 1 and 1 to 0
-        if self.snapshot: 
-            self.delayed_clip = 0
-            self.default_alpha = 1
-        else: self.default_alpha = 0.3
-        print(f"snapshot mode set: {self.snapshot}")
-        self.tray.update_hov_text(self.tray.sysTrayIcon)
+    #def toggle_snapshot_mode(self):
+    #    self.snapshot = 1 - self.snapshot # Toggle from 0 to 1 and 1 to 0
+    #    if self.snapshot: 
+    #        self.delayed_clip = 0
+    #        self.default_alpha = 1
+    #    else: self.default_alpha = 0.3
+    #    print(f"snapshot mode set: {self.snapshot}")
+    #    self.tray.update_hov_text(self.tray.sysTrayIcon)
 
 
-    #***************** Toggle delay mode *************. 
-    def toggle_delay_mode(self):
-        self.delayed_clip = 1 - self.delayed_clip # Toggle from 0 to 1 and 1 to 0
-        if self.delayed_clip: 
-            self.snapshot = 0
-            self.default_alpha = 1
-        else: self.default_alpha = 0.3
-        print(f"delayed mode set: {self.delayed_clip}")
-        self.tray.update_hov_text(self.tray.sysTrayIcon)
+    ##***************** Toggle delay mode *************. 
+    #def toggle_delay_mode(self):
+    #    self.delayed_clip = 1 - self.delayed_clip # Toggle from 0 to 1 and 1 to 0
+    #    if self.delayed_clip: 
+    #        self.snapshot = 0
+    #        self.default_alpha = 1
+    #    else: self.default_alpha = 0.3
+    #    print(f"delayed mode set: {self.delayed_clip}")
+    #    self.tray.update_hov_text(self.tray.sysTrayIcon)
 
-    def ask_toggle_auto_hide(self):
-        a = messagebox.askquestion(title = "", message = "would you like to enable autohide clips to keep them out of the way when clipping?", parent = root)
-        if a == "yes": self.toggle_auto_hide()
+    #def ask_toggle_auto_hide(self):
+    #    a = messagebox.askquestion(title = "", message = "would you like to enable autohide clips to keep them out of the way when clipping?", parent = root)
+    #    if a == "yes": self.toggle_auto_hide()
 
-    #***************** Toggle multi mode *************. 
-    def toggle_multi_mode(self):
-        self.multi_clip = 1 - self.multi_clip # Toggle from 0 to 1 and 1 to 0
-        print(f"multi clip mode set: {self.multi_clip}")
-        self.tray.update_hov_text(self.tray.sysTrayIcon)
-        if self.multi_clip and not self.auto_hide_clip: root.after(0, self.ask_toggle_auto_hide)
-
-
-    #***************** Toggle lines *************. 
-    def toggle_cursor_lines(self):
-        self.cursor_lines = 1 - self.cursor_lines # Toggle from 0 to 1 and 1 to 0
-        print(f"cursor lines set: {self.cursor_lines}")
-
-    #***************** Toggle copymode *************. 
-    def toggle_win32_clipboard(self):
-        self.win32clipboard = 1 - self.win32clipboard # Toggle from 0 to 1 and 1 to 0
-        print(f"win32clipboard set: {self.win32clipboard}")
+    ##***************** Toggle multi mode *************. 
+    #def toggle_multi_mode(self):
+    #    self.multi_clip = 1 - self.multi_clip # Toggle from 0 to 1 and 1 to 0
+    #    print(f"multi clip mode set: {self.multi_clip}")
+    #    self.tray.update_hov_text(self.tray.sysTrayIcon)
+    #    if self.multi_clip and not self.auto_hide_clip: root.after(0, self.ask_toggle_auto_hide)
 
 
-    #***************** Toggle auto copy *************. 
-    def toggle_auto_copy(self):
-        self.auto_copy_image = 1 - self.auto_copy_image
-        print(f"auto copy set : {self.auto_copy_image}")
+    ##***************** Toggle lines *************. 
+    #def toggle_cursor_lines(self):
+    #    self.cursor_lines = 1 - self.cursor_lines # Toggle from 0 to 1 and 1 to 0
+    #    print(f"cursor lines set: {self.cursor_lines}")
 
-    #***************** Toggle auto hide *************. 
-    def toggle_auto_hide(self):
-        self.auto_hide_clip = 1 - self.auto_hide_clip
-        print(f"auto hide set : {self.auto_hide_clip}")
+    ##***************** Toggle copymode *************. 
+    #def toggle_win32_clipboard(self):
+    #    self.win32clipboard = 1 - self.win32clipboard # Toggle from 0 to 1 and 1 to 0
+    #    print(f"win32clipboard set: {self.win32clipboard}")
 
-    #***************** Toggle open on save *************. 
-    def toggle_open_on_save(self):
-        self.open_on_save = 1 - self.open_on_save
-        print(f"open_on_save set : {self.open_on_save}")
+
+    ##***************** Toggle auto copy *************. 
+    #def toggle_auto_copy(self):
+    #    self.auto_copy_image = 1 - self.auto_copy_image
+    #    print(f"auto copy set : {self.auto_copy_image}")
+
+    ##***************** Toggle auto hide *************. 
+    #def toggle_auto_hide(self):
+    #    self.auto_hide_clip = 1 - self.auto_hide_clip
+    #    print(f"auto hide set : {self.auto_hide_clip}")
+
+    ##***************** Toggle open on save *************. 
+    #def toggle_open_on_save(self):
+    #    self.open_on_save = 1 - self.open_on_save
+    #    print(f"open_on_save set : {self.open_on_save}")
 
 
     #***************** Destroy all toplevel widgets or only destroy clpping windows *************.###
@@ -1383,332 +1760,15 @@ class snipping_tool():
 
     def settings_window(self):
 
-        def save_settings(*args):
-            save_changes.focus()
-            self.scale_percent = float(zoom_percent_Combobox.get())
-            self.multiplyer = float(zoom_multiplyer_Combobox.get())
-            self.border_thiccness = int(border_thiccness_combobox.get())
+        
 
-            correct_modifyers_for_hotkey = {"WindowsKey" : "<cmd>", "Alt" : "<alt>", "Ctrl" : "<ctrl>", "Shift" : "<shift>"}
-
-            hotkey1 = list( dict.fromkeys([i for i in [hotkey_1_modifyer_1.get(), hotkey_1_modifyer_2.get(), hotkey_1_modifyer_3.get(), hotkey_1_key.get()] if i != "None"]))
-            hotkey2 = list( dict.fromkeys([i for i in [hotkey_2_modifyer_1.get(), hotkey_2_modifyer_2.get(), hotkey_2_modifyer_3.get(), hotkey_2_key.get()] if i != "None"]))
-
-            hotkey1_formated = [correct_modifyers_for_hotkey[i] for i in hotkey1 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
-            hotkey2_formated = [correct_modifyers_for_hotkey[i] for i in hotkey2 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
-
-            hotkey1_formated.append(hotkey1[-1].lower())
-            hotkey2_formated.append(hotkey2[-1].lower())
-
-            final_hotkey1 = "+".join(hotkey1_formated)
-            final_hotkey2 = "+".join(hotkey2_formated)
-
-            print(final_hotkey1)
-            print(final_hotkey2)
-
-            if final_hotkey1 != self.hotkey_visual_in_settings["current_hotkey_1"]:
-                del hotkey1_formated[-1]
-                try:
-                    Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0]) 
-                    self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, hotkey1_formated, hotkey1[-1].lower(), self.on_activate_i) 
-                    print(f"New hotkey set for Standard mode, {final_hotkey1}")
-                except Exception as e:print(e)
-
-            if final_hotkey2 != self.hotkey_visual_in_settings["current_hotkey_2"]:
-                del hotkey2_formated[-1]
-                try:
-                    Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) 
-                    self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, hotkey2_formated, hotkey2[-1].lower(), self.on_activate_gif)
-                    print(f"New hotkey set for Gif mode, {final_hotkey2}")
-                except Exception as e:print(e)
-
-            
-
-            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : hotkey_1_modifyer_3.get(), "hotkey_1_key" : hotkey_1_key.get(), "current_hotkey_1" : final_hotkey1,
-                                              "hotkey_2_modifyer_1" : hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : hotkey_2_modifyer_3.get(), "hotkey_2_key" : hotkey_2_key.get(), "current_hotkey_2" : final_hotkey2}       
-            self.settings_window()
-
-
-
-
-        def change_snapshot(*args):
-            self.toggle_snapshot_mode()
-            snapshot_mode_button.config(text = f"SnapShotMode {self.snapshot}")
-            delay_clip_mode_button.config(text = f"DelayMode {self.delayed_clip}")
-
-        def change_delay_clip(*args):
-            self.toggle_delay_mode()
-            delay_clip_mode_button.config(text = f"DelayMode {self.delayed_clip}")
-            snapshot_mode_button.config(text = f"SnapShotMode {self.snapshot}")
-
-        def change_lines(*args):
-            self.toggle_cursor_lines()
-            cursor_guidelines_button.config(text = f"CursorLines {self.cursor_lines}")
-
-        def change_multi_mode(*args):
-            self.toggle_multi_mode()
-            multi_clip_mode_button.config(text = f"MultiMode {self.multi_clip}")
-
-        def change_win32_clip(*args):
-            self.toggle_win32_clipboard()
-            use_win32_clipboard_copy.config(text = f"Win32clipboard {self.win32clipboard}")
-            
-        def change_toggle_auto_copy(*args):
-            self.toggle_auto_copy()
-            auto_copy_clip_button.config(text = f"AutoCopyClip {self.auto_copy_image}")
-
-        def change_toggle_auto_hide(*args):
-            self.toggle_auto_hide()
-            auto_hide_clip_button.config(text = f"AutoHideClip {self.auto_hide_clip}")
-
-        def change_open_on_save(*args):
-            self.toggle_open_on_save()
-            open_on_save_button.config(text = f"AutoOpenOnSave {self.open_on_save}")
-
-        def show_console(*args):
-            PrintLogger.consolewin(root)
-            print("Created by Minnowo")
-            print("Github: https://github.com/Minnowo")
-            print("Discord: https://discord.gg/qznYCXz")
-
-
-        def restore_default(*args):
-            self.scale_percent = 0.35
-            self.multiplyer = 0.08
-            self.snapshot = 0
-            self.delayed_clip = 0
-            self.multi_clip = 0
-            self.auto_copy_image = 0
-            self.auto_hide_clip = 0
-            self.zoomcycle = 0
-            self.cursor_lines = 1
-            self.default_alpha = 0.3
-            self.win32clipboard = 1
-            self.border_color = "#ff08ff"
-            self.border_thiccness = 1
-            self.open_on_save = 1
-
-
-            if self.hotkey_visual_in_settings["current_hotkey_1"] != '<cmd>+z':
-                try:
-                    Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0])
-                except Exception as e:print(e)
-
-                try:
-                    self.clip_hotkey = Global_hotkeys.create_hotkey(self.hwnd, 0, ["<cmd>"], "z", self.on_activate_i) 
-                    print("Hotkey 1 has been reset")
-                except Exception as e:print(e)
-
-
-            if self.hotkey_visual_in_settings["current_hotkey_2"] != '<cmd>+c':
-                try:
-                    Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) 
-                except Exception as e:print(e)
-
-                try:
-                    self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, ["<cmd>"], "c", self.on_activate_gif) 
-                    print("Hotkey 2 has been reset")
-                except Exception as e:print(e)
-
-
-            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
-                                              "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1,}
-            self.settings_window()
-
-
-        def change_border(*args):
-            a = askcolor(color = self.border_color)
-            if a[1]:
-                self.border_color = a[1]
-                print(f"clip border color = {self.border_color}")
-
-
-        def clip_from_clipboard(*args):
-            img = ImageGrab.grabclipboard()
-            print(img)
-            if img:
-                try:
-                    self.show_clip_window(None, True, img)
-                except Exception as e:
-                    messagebox.showerror(title="", message=f"{e}", parent=root)
-                finally:
-                    del img
-                    gc.collect()
-            else:
-                messagebox.showerror(title="", message="No image on clipboard", parent=root)
-
-        def open_image(*args):
-            img = askopenfilename(parent=root)
-
-            if img:
-                try:
-                    with PIL.Image.open(img) as image:
-                        print(image)
-                        self.show_clip_window(None, True, image)
-                    image.close()
-                except Exception as e:
-                    messagebox.showerror(title="", message=f"{e}", parent=root)
-                finally:
-                    del image, img
-                    gc.collect()
-
-
-        def create_save_file(*args):
-            with open("settings.json", "w") as save_file:
-                settings = {"scale_percent"  : self.scale_percent,  "zoom_multiplyer" : self.multiplyer,   "snapshot_mode"      : self.snapshot,
-                            "delayed_mode"   : self.delayed_clip,   "multi_clip"      : self.multi_clip,   "auto_copy_image"    : self.auto_copy_image,
-                            "auto_hide_clip" : self.auto_hide_clip, "cursor_lines"    : self.cursor_lines, "default_alpha"      : self.default_alpha,
-                            "win32clipboard" : self.win32clipboard, "border_color"    : self.border_color, "border_thiccness"   : self.border_thiccness,
-                            "line_width"     : self.line_width,     "line_color"      : self.line_color,   "brush_scale_factor" : self.brush_scale_factor, 
-                            "open_on_save"   : self.open_on_save,
-                            "hotkeys"        : self.hotkey_visual_in_settings}
-                save_file.write(json.dumps(settings,  indent=3))
-                save_file.close()
-                print("\n\n", json.dumps(settings,  indent=3), "\n\n")
 
         for widget in root.winfo_children():
             if isinstance(widget, Toplevel):
                 tit = str(widget.title())
                 if tit.find("Settings") != -1 or tit.find("DrawingSettings") != -1:
                     widget.destroy()
-
-        settings_window_root = Toplevel(root)
-        settings_window_root.title("Settings")
-        settings_window_root.attributes("-topmost", True)
-        settings_window_root.lift()
-        settings_window_root.resizable(0,0)
-        
-        #***************** Buttons *************. 
-        save_changes =              Button(settings_window_root, text =  "Save Changes",                        command = save_settings)
-        reset_changes =             Button(settings_window_root, text =  "Reset Changes",                       command = self.settings_window)
-        restore_deault_button =     Button(settings_window_root, text =  "Restore Default",                     command = restore_default)
-        show_console_button =       Button(settings_window_root, text =  "ShowConsole",                         command = show_console)
-        choose_border_color =       Button(settings_window_root, text =  "Border/LineColor",                    command = change_border)
-        open_image_button =         Button(settings_window_root, text =  "OpenImage",                           command = open_image) 
-        open_from_clipboard_button =Button(settings_window_root, text =  "OpenFromClipboard",                   command = clip_from_clipboard) 
-        auto_copy_clip_button =     Button(settings_window_root, text = f"AutoCopyClip {self.auto_copy_image}", command = change_toggle_auto_copy)
-        auto_hide_clip_button =     Button(settings_window_root, text = f"AutoHideClip {self.auto_hide_clip}",  command = change_toggle_auto_hide)
-        create_save_file_button =   Button(settings_window_root, text =  "Create Save",                         command = create_save_file)
-        snapshot_mode_button =      Button(settings_window_root, text = f"SnapShotMode {self.snapshot}",        command = change_snapshot)
-        delay_clip_mode_button =    Button(settings_window_root, text = f"DelayMode {self.delayed_clip}",       command = change_delay_clip)
-        multi_clip_mode_button =    Button(settings_window_root, text = f"MultiMode {self.multi_clip}",         command = change_multi_mode)
-        cursor_guidelines_button =  Button(settings_window_root, text = f"CursorLines {self.cursor_lines}",     command = change_lines)
-        use_win32_clipboard_copy =  Button(settings_window_root, text = f"Win32clipboard {self.win32clipboard}",command = change_win32_clip)
-        open_on_save_button =       Button(settings_window_root, text = f"AutoOpenOnSave {self.open_on_save}",  command = change_open_on_save)
-
-        # row 5 is for modes
-        snapshot_mode_button.grid       (column = 0, row = 5, sticky = EW)
-        delay_clip_mode_button.grid     (column = 1, row = 5, sticky = EW)
-        multi_clip_mode_button.grid     (column = 2, row = 5, sticky = EW)        
-        use_win32_clipboard_copy.grid   (column = 3, row = 5, sticky = EW)
-
-        # row 6 for auto features 
-        auto_copy_clip_button.grid      (column = 0, row = 6, sticky = EW)
-        auto_hide_clip_button.grid      (column = 1, row = 6, sticky = EW)
-        open_on_save_button.grid        (column = 2, row = 6, sticky = EW)
-
-        # row 7 for other
-        cursor_guidelines_button.grid   (column = 0, row = 7, sticky = EW)
-        choose_border_color.grid        (column = 1, row = 7, sticky = EW)
-        open_image_button.grid          (column = 2, row = 7, sticky = EW)
-        open_from_clipboard_button.grid (column = 3, row = 7, sticky = EW)
-
-        # row 8 for function buttons
-        save_changes.grid               (column = 0, row = 8, sticky = EW)
-        reset_changes.grid              (column = 1, row = 8, sticky = EW)
-        restore_deault_button.grid      (column = 2, row = 8, sticky = EW)
-        show_console_button.grid        (column = 3, row = 8, sticky = EW)
-        create_save_file_button.grid    (column = 4, row = 8, sticky = EW)
-
-        CreateToolTip(snapshot_mode_button,     "Snapshot Mode: \nFreezes your screen, allowing you to crop a current point in time")
-        CreateToolTip(delay_clip_mode_button,   "Delayed Mode: \nTakes a screenshot and holds it in memory, upon the Clip Hotkey again display the screenshot allowing you to crop it")
-        CreateToolTip(multi_clip_mode_button,   "Lets you clip with the same clipping window until you close it with Right Click")
-        CreateToolTip(cursor_guidelines_button, "This toggles the visual pink lines when clipping")
-        CreateToolTip(use_win32_clipboard_copy, "Copy clip using win32clipboard \nWhen set to 0 clip will be copied using Alt+PrntScreen and then cropped\n(win32clipboard is recommended)")
-        CreateToolTip(auto_copy_clip_button,    "Automatically copies the clip to your clipboard")
-        CreateToolTip(auto_hide_clip_button,    "Automatically hides the clip in your task bar to keep it out of the way")
-        CreateToolTip(open_on_save_button,      "Automatically opens file explorer to the location of saved clips/gifs")
-        CreateToolTip(choose_border_color,      "Select the color of the clip outline and the guidelines shown when making a clip")
-        CreateToolTip(open_image_button,        "Open an image file and create a clip from it\n(transparent images will have the background be the border color)")
-        CreateToolTip(open_from_clipboard_button,"Create a clip from image byte data on clipboard if it exists")
-
-
-        #***************** Labels *************. 
-        hotkey_1_label =            Label(settings_window_root, text = "Clip Hotkey")
-        hotkey_2_label =            Label(settings_window_root, text = "Gif Hotkey")
-        border_thiccness_label =    Label(settings_window_root, text = "Clip Border Thickness")
-        zoom_percent_label =        Label(settings_window_root, text = "Zoom Square Size")
-        zoom_multiplyer_label =     Label(settings_window_root, text = "Zoom Multiplyer")
-
-        hotkey_1_label.grid             (column = 0, row = 1, sticky = EW)
-        hotkey_2_label.grid             (column = 0, row = 2, sticky = EW, pady = (0,10))
-        border_thiccness_label.grid     (column = 0, row = 4, sticky = EW, pady = (0,10))
-        zoom_percent_label.grid         (column = 0, row = 3, sticky = EW)
-        zoom_multiplyer_label.grid      (column = 2, row = 3, sticky = EW)
-   
-        CreateToolTip(hotkey_1_label,           "Hotkey to make a clip")
-        CreateToolTip(hotkey_2_label,           "Hotkey to make a gif")
-        CreateToolTip(border_thiccness_label,   "Thickness of border around clip") 
-        CreateToolTip(zoom_percent_label,       "Size of zoom box \nLower = Smaller \nHigher = Bigger \nAbove 1.25 can be lagy")
-        CreateToolTip(zoom_multiplyer_label,    "How far in the zoom starts \nLower = More Zoomed \nHigher = Less Zoomed")
-
-
-        #***************** ComboBox *************. 
-        modifiers = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"]
-        keys = list(Global_hotkeys.PYNPUT_TO_VK.keys())
-
-        hotkey_1_modifyer_1 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
-        hotkey_1_modifyer_2 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
-        hotkey_1_modifyer_3 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
-        hotkey_1_key =          ttk.Combobox(settings_window_root,  values = keys,      width=12,  state='readonly')
-
-        hotkey_2_modifyer_1 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
-        hotkey_2_modifyer_2 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
-        hotkey_2_modifyer_3 =   ttk.Combobox(settings_window_root,  values = modifiers, width=12,  state='readonly')
-        hotkey_2_key =          ttk.Combobox(settings_window_root,  values = keys,      width=12,  state='readonly')
-        
-        border_thiccness_combobox = ttk.Combobox(settings_window_root,  values = [i for i in range(0, 100)],                                        width = 4,  state='readonly')
-        zoom_percent_Combobox =     ttk.Combobox(settings_window_root,  values = [round(x, 3) for x in numpy.arange(0, 2, 0.01) if x >= 0.03],      width=5,  state='readonly')
-        zoom_multiplyer_Combobox =  ttk.Combobox(settings_window_root,  values = [round(x, 3) for x in numpy.arange(0, 0.2, 0.01) if x >= 0.03],    width=5,  state='readonly')
-        
-        hotkey_1_modifyer_1.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_1"])
-        hotkey_1_modifyer_2.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_2"])
-        hotkey_1_modifyer_3.set         (self.hotkey_visual_in_settings["hotkey_1_modifyer_3"])
-        hotkey_1_key.set                (self.hotkey_visual_in_settings["hotkey_1_key"])
-
-        hotkey_2_modifyer_1.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_1"])
-        hotkey_2_modifyer_2.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_2"])        
-        hotkey_2_modifyer_3.set         (self.hotkey_visual_in_settings["hotkey_2_modifyer_3"])
-        hotkey_2_key.set                (self.hotkey_visual_in_settings["hotkey_2_key"])
-
-        border_thiccness_combobox.set   (self.border_thiccness)
-        zoom_percent_Combobox.set       (self.scale_percent)
-        zoom_multiplyer_Combobox.set    (self.multiplyer)
-
-        hotkey_1_modifyer_1.grid        (column = 1, row = 1, sticky = EW)
-        hotkey_1_modifyer_2.grid        (column = 2, row = 1, sticky = EW)
-        hotkey_1_modifyer_3.grid        (column = 3, row = 1, sticky = EW)
-        hotkey_1_key.grid               (column = 4, row = 1, sticky = EW)
-
-        hotkey_2_modifyer_1.grid        (column = 1, row = 2, sticky = EW, pady = (0,10))
-        hotkey_2_modifyer_2.grid        (column = 2, row = 2, sticky = EW, pady = (0,10))
-        hotkey_2_modifyer_3.grid        (column = 3, row = 2, sticky = EW, pady = (0,10))
-        hotkey_2_key.grid               (column = 4, row = 2, sticky = EW, pady = (0,10))
-
-        zoom_percent_Combobox.grid      (column = 1, row = 3, sticky = EW)
-        zoom_multiplyer_Combobox.grid   (column = 3, row = 3, sticky = EW)
-        border_thiccness_combobox.grid  (column = 1, row = 4, sticky = EW, pady = (0,10))
-
-        
-
-        settings_window_root.update()
-        xloc = (root.winfo_screenwidth() // 2) - (settings_window_root.winfo_width() // 2)  
-        yloc = (root.winfo_screenheight() // 2) - (settings_window_root.winfo_height() // 2)
-        print(xloc, yloc)
-        settings_window_root.geometry(f"+{xloc}+{yloc}")
-        self.create_drawing_settings_win(root, startx = xloc, starty = yloc)
-        
-
+        Settings(self)
 
 
         
@@ -1791,17 +1851,25 @@ class tray():
 
     #***************** Set the clipping windows to be screenshot of each monitor rather than transparent window *************. 
     def snapshot_mode(self, systray):
-        self.clip_app.toggle_snapshot_mode()
+        self.clip_app.snapshot = 1 - self.clip_app.snapshot # Toggle from 0 to 1 and 1 to 0
+        if self.clip_app.snapshot: 
+            self.clip_app.delayed_clip = 0
+            self.clip_app.default_alpha = 1
+        else: self.clip_app.default_alpha = 0.3
         self.update_hov_text(systray)
 
     #***************** Enable delay mode which saves monitor screenshots in memory to clip when called again *************. 
     def delay_mode(self, systray):
-        self.clip_app.toggle_delay_mode()
+        self.clip_app.delayed_clip = 1 - self.clip_app.delayed_clip # Toggle from 0 to 1 and 1 to 0
+        if self.clip_app.delayed_clip: 
+            self.clip_app.snapshot = 0
+            self.clip_app.default_alpha = 1
+        else: self.clip_app.default_alpha = 0.3
         self.update_hov_text(systray)
 
     #***************** Enable multi mode *************. 
     def multi_mode(self, systray):
-        self.clip_app.toggle_multi_mode()
+        self.clip_app.multi_clip = 1 - self.clip_app.multi_clip # Toggle from 0 to 1 and 1 to 0
         self.update_hov_text(systray)
 
     #***************** Kill tkinter mainloop and remove all hotkey threads *************. 
