@@ -1,7 +1,7 @@
 import sys, os, signal, time, threading, PIL.Image, ctypes, datetime, gc, pytesseract, imageio, numpy, io, win32clipboard
 import keyboard as kb
 import json
-import subprocess
+#import subprocess
 from infi.systray import SysTrayIcon 
 from tkinter import *
 from tkinter.filedialog import asksaveasfile, askopenfilename
@@ -387,6 +387,8 @@ class Settings:
         self.multiplyer = SnippingClass.multiplyer
         self.default_alpha = SnippingClass.default_alpha
         self.border_color = SnippingClass.border_color
+        self.clip_hotkey = SnippingClass.clip_hotkey
+        self.gif_hotkey = SnippingClass.gif_hotkey
 
         self.settings_window_root = Toplevel(root)
         self.settings_window_root.title("Settings")
@@ -527,9 +529,9 @@ class Settings:
 
     def save_settings(self, *args):
 
-            self.snippingclass.scale_percent = float(self.zoom_percent_Combobox.get())
-            self.snippingclass.multiplyer = float(self.zoom_multiplyer_Combobox.get())
-            self.snippingclass.border_thiccness = int(self.border_thiccness_combobox.get())
+            self.scale_percent = float(self.zoom_percent_Combobox.get())
+            self.multiplyer = float(self.zoom_multiplyer_Combobox.get())
+            self.border_thiccness = int(self.border_thiccness_combobox.get())
 
             correct_modifyers_for_hotkey = {"WindowsKey" : "<cmd>", "Alt" : "<alt>", "Ctrl" : "<ctrl>", "Shift" : "<shift>"}
 
@@ -566,8 +568,8 @@ class Settings:
 
             
 
-            self.snippingclass.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : final_hotkey1,
-                                                            "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : final_hotkey2}       
+            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : final_hotkey1,
+                                              "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : final_hotkey2}       
             self.snippingclass.save_settings(self)
 
 
@@ -677,8 +679,9 @@ class Settings:
 
 
         self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
-                                            "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1,}
-        self.settings_window()
+                                          "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1,}
+        self.snippingclass.save_settings(self)
+        self.snippingclass.settings_window()
 
 
     def change_border(self, *args):
@@ -724,7 +727,7 @@ class Settings:
                         "delayed_mode"   : self.delayed_clip,   "multi_clip"      : self.multi_clip,   "auto_copy_image"    : self.auto_copy_image,
                         "auto_hide_clip" : self.auto_hide_clip, "cursor_lines"    : self.cursor_lines, "default_alpha"      : self.default_alpha,
                         "win32clipboard" : self.win32clipboard, "border_color"    : self.border_color, "border_thiccness"   : self.border_thiccness,
-                        "line_width"     : self.line_width,     "line_color"      : self.line_color,   "brush_scale_factor" : self.brush_scale_factor, 
+                        "line_width"     : self.snippingclass.line_width,     "line_color"      : self.snippingclass.line_color,   "brush_scale_factor" : self.snippingclass.brush_scale_factor, 
                         "open_on_save"   : self.open_on_save,
                         "hotkeys"        : self.hotkey_visual_in_settings}
             save_file.write(json.dumps(settings,  indent=3))
@@ -1648,6 +1651,7 @@ class snipping_tool():
     #***************** Other functions *************. 
     #*****************                           *************. 
 
+    # call from the settings window class to update all the variables in the snipping class 
     def save_settings(self, val):
         self.scale_percent = val.scale_percent
         self.multiplyer = val.multiplyer
@@ -1664,65 +1668,9 @@ class snipping_tool():
         self.hotkey_visual_in_settings = val.hotkey_visual_in_settings
         self.open_on_save = val.open_on_save
         self.tray.update_hov_text(self.tray.sysTrayIcon)
+        self.clip_hotkey = val.clip_hotkey
+        self.gif_hotkey = val.gif_hotkey
 
-    #***************** Toggle snapshot mode *************. 
-    #def toggle_snapshot_mode(self):
-    #    self.snapshot = 1 - self.snapshot # Toggle from 0 to 1 and 1 to 0
-    #    if self.snapshot: 
-    #        self.delayed_clip = 0
-    #        self.default_alpha = 1
-    #    else: self.default_alpha = 0.3
-    #    print(f"snapshot mode set: {self.snapshot}")
-    #    self.tray.update_hov_text(self.tray.sysTrayIcon)
-
-
-    ##***************** Toggle delay mode *************. 
-    #def toggle_delay_mode(self):
-    #    self.delayed_clip = 1 - self.delayed_clip # Toggle from 0 to 1 and 1 to 0
-    #    if self.delayed_clip: 
-    #        self.snapshot = 0
-    #        self.default_alpha = 1
-    #    else: self.default_alpha = 0.3
-    #    print(f"delayed mode set: {self.delayed_clip}")
-    #    self.tray.update_hov_text(self.tray.sysTrayIcon)
-
-    #def ask_toggle_auto_hide(self):
-    #    a = messagebox.askquestion(title = "", message = "would you like to enable autohide clips to keep them out of the way when clipping?", parent = root)
-    #    if a == "yes": self.toggle_auto_hide()
-
-    ##***************** Toggle multi mode *************. 
-    #def toggle_multi_mode(self):
-    #    self.multi_clip = 1 - self.multi_clip # Toggle from 0 to 1 and 1 to 0
-    #    print(f"multi clip mode set: {self.multi_clip}")
-    #    self.tray.update_hov_text(self.tray.sysTrayIcon)
-    #    if self.multi_clip and not self.auto_hide_clip: root.after(0, self.ask_toggle_auto_hide)
-
-
-    ##***************** Toggle lines *************. 
-    #def toggle_cursor_lines(self):
-    #    self.cursor_lines = 1 - self.cursor_lines # Toggle from 0 to 1 and 1 to 0
-    #    print(f"cursor lines set: {self.cursor_lines}")
-
-    ##***************** Toggle copymode *************. 
-    #def toggle_win32_clipboard(self):
-    #    self.win32clipboard = 1 - self.win32clipboard # Toggle from 0 to 1 and 1 to 0
-    #    print(f"win32clipboard set: {self.win32clipboard}")
-
-
-    ##***************** Toggle auto copy *************. 
-    #def toggle_auto_copy(self):
-    #    self.auto_copy_image = 1 - self.auto_copy_image
-    #    print(f"auto copy set : {self.auto_copy_image}")
-
-    ##***************** Toggle auto hide *************. 
-    #def toggle_auto_hide(self):
-    #    self.auto_hide_clip = 1 - self.auto_hide_clip
-    #    print(f"auto hide set : {self.auto_hide_clip}")
-
-    ##***************** Toggle open on save *************. 
-    #def toggle_open_on_save(self):
-    #    self.open_on_save = 1 - self.open_on_save
-    #    print(f"open_on_save set : {self.open_on_save}")
 
 
     #***************** Destroy all toplevel widgets or only destroy clpping windows *************.###
@@ -1760,13 +1708,10 @@ class snipping_tool():
 
     def settings_window(self):
 
-        
-
-
         for widget in root.winfo_children():
             if isinstance(widget, Toplevel):
                 tit = str(widget.title())
-                if tit.find("Settings") != -1 or tit.find("DrawingSettings") != -1:
+                if tit.find("Settings") != -1:
                     widget.destroy()
         Settings(self)
 
