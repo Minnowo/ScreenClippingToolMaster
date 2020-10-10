@@ -219,6 +219,162 @@ class Global_hotkeys:
         return data.decode("unicode-escape")
 
 
+class Create_gif:
+    
+    def __init__(self, open_on_save, border_color, monitor, x1, y1, x2, y2):
+        self.adjust_vals = {"ghost border" : 10, "title bar" : 33, "trial n err" : 3}
+        self.gif = []               # Keep all the pictures taken in gif mode
+        self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
+        self.threads = []           # Keep track of used threads to join back later
+        self.open_on_save = open_on_save
+        self.border_color = border_color
+        self.stop_drag = 0
+        self.gif_bounds = [i for i in [monitor.x + x1, monitor.y + y1, monitor.x + x2, monitor.y + y2]]
+        print(self.gif_bounds)
+
+        for widget in root.winfo_children():
+                if isinstance(widget, Toplevel):
+                    if str(widget.title()).find("GifWindow") != -1:
+                        self.exit_gif(widget)
+
+        self.gif_area = Toplevel(root)
+        self.gif_area.title("GifWindow")
+        self.gif_area.minsize(x2-x1, y2-y1)
+        self.gif_area.resizable(0,0)
+        self.gif_area.attributes("-transparent", "blue")
+        self.gif_area.attributes('-topmost', 'true')
+        self.gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1-9 + monitor.x, y1-32+ monitor.y))
+
+        self.canvas = Canvas(self.gif_area, bg="grey11", highlightthickness = 0)
+        self.canvas.pack(expand = True, fill = BOTH)
+        self.canvas.create_rectangle(0, 0, x2-x1+1, y2-y1+1, outline= self.border_color, width=1, fill="blue", tag = "gif_area")
+
+
+        self.gif_area.protocol("WM_DELETE_WINDOW", self.exit_gif)
+        self.gif_area.bind('<Configure>', self.moving_window)
+
+        buttons = Toplevel(self.gif_area)
+        buttons.protocol("WM_DELETE_WINDOW", self.exit_gif)                              # If you hit the X on the button window destroy the clip windows 
+        buttons.lift()                                                                      # Bring in front of clipping windows 
+        buttons.resizable(0,0)                                                              # Cant resize
+        buttons.attributes("-topmost", True)                                                # Always on top
+        mousex, mousey = root.winfo_pointerxy()                                             # Get mouse xy
+        buttons.geometry(f"{250}x{50}+{mousex - 115}+{mousey - 10}")                        # Spawn the window on your mouse
+
+
+        #***************** Make buttons *************. 
+        record_button = Button(buttons, text = "Start", command = self.record_thread)
+        record_button.pack(side = LEFT,expand = True, fill = BOTH)
+
+        stop_record_button = Button(buttons, text = "Stop", command = self.stop_gif)
+        stop_record_button.pack(side = LEFT, expand = True, fill = BOTH)
+
+        save_record_button = Button(buttons, text = "Save", command = self.save_gif)
+        save_record_button.pack(side = LEFT, expand = True, fill = BOTH)
+
+        xypos_label = Label(buttons, text = "XY Position  ")
+        xypos_label.pack(anchor = E)
+
+        xyposition_of_main = ttk.Combobox(buttons, width = 9, values = [(i, x//2) for i, x in enumerate(numpy.arange(0, 4096))])
+        xyposition_of_main.pack()
+
+        xyposition_of_main.bind("<Return>", self.on_enter)
+        xyposition_of_main.bind("<<ComboboxSelected>>", self.on_enter)
+
+
+    #***************** Run the record function in seperate thread to ensure it doesn't block main program *************. 
+    def record_thread(self):
+        if not self.record_on:
+            if len(self.gif_bounds) == 4:
+                a = Thread(target = self.record, args = ())
+                self.threads.append(a)
+                a.start()
+    
+    #***************** Take rapid screenshots of selected area and stick them into an array *************. 
+    def record(self):
+        self.record_on = True
+
+        while self.record_on == True:
+            rct = (self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3])#rct = (self.gif_bounds[0] + x1, self.gif_bounds[1] + y1, self.gif_bounds[2] + x2, self.gif_bounds[3] + y2)
+            img = getRectAsImage(rct) #x1, y1, x2, y2 = self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[0]
+            self.gif.append(img)
+            del img
+            print('image taken at', rct)
+            time.sleep(0.05)
+        gc.collect()
+
+
+    #***************** Stop taking pictures, save the gif *************. 
+    def stop_gif(self):
+        self.record_on = False 
+
+        for i in self.threads.copy():
+            i.join()
+            self.threads.remove(i)
+        gc.collect()
+
+    #***************** Save gif *************. 
+    def save_gif(self):
+        self.record_on = False
+        savename = datetime.datetime.now()
+        savename = savename.strftime("%Y-%m-%d_%H-%M-%S.%f")
+        f = asksaveasfile(initialfile = f"{savename}", mode='w', defaultextension=".gif", parent=root)
+        if f is None: return
+        print(f.name)
+
+        try:
+            with imageio.get_writer(f"{f.name}", mode='I') as writer:
+                for i in self.gif.copy(): 
+                    writer.append_data(numpy.array(i))    
+                    del self.gif[self.gif.index(i)]
+            if self.open_on_save: explore(f.name)
+        except KeyError:
+            messagebox.showerror(title="", message="The filetype {} is most likely unsupported".format(format), parent=root)
+            print(KeyError)
+        except Exception as e: 
+            print(e)
+            messagebox.showerror(title="", message=f"There was an error that was not a problem with the filetype please tell minnowo \n{e}", parent=root)
+
+        for i in self.threads.copy():
+            i.join()                # Clean up threads
+            del self.threads[self.threads.index(i)]
+
+        del f
+        self.gif.clear()
+        gc.collect()
+
+    def exit_gif(self):
+            self.gif_area.destroy()
+            self.record_on = False
+            self.gif.clear()
+            gc.collect()
+
+    def show_border(self):
+        self.stop_drag = 0
+        try: self.canvas.itemconfig("gif_area", outline = self.border_color) # if the window is destroyed before the 500 ms delay it throws an error 
+        except:pass
+
+    def moving_window(self, event):
+        if not self.stop_drag:
+            self.canvas.itemconfig("gif_area", outline = "")
+        else:
+            root.after_cancel(self.stop_drag)
+
+        gif_bounds = self.canvas.find_withtag("gif_area")
+        winx, winy = (self.gif_area.winfo_x() + self.adjust_vals["ghost border"], self.gif_area.winfo_y() + self.adjust_vals["title bar"]) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
+        bounds = [i for i in self.canvas.bbox(gif_bounds[0])]
+        self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-self.adjust_vals["trial n err"], winy + bounds[3]-self.adjust_vals["trial n err"]] # idk why -3 makes it take pics inside the red border but it does
+
+        self.stop_drag = root.after(500, self.show_border)
+
+    def on_enter(self, event):
+        try:
+            xy = [int(i.strip()) for i in event.widget.get().split(" ")]
+            self.gif_area.geometry(f"+{xy[0]-9}+{xy[1]-32}")
+        except:
+            return
+
+    
 
 class snipping_tool():
 
@@ -307,17 +463,19 @@ class snipping_tool():
 
         self.zoomcycle = 0          # How far in you are zoomed
         self.hwnd = root.winfo_id()
-        self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
         self.draw = 1
-        self.stop_drag = 0
-
+        
         self.save_img_data = {}     # Keep track of the img data so it can be saved, or used for OCR
         self.lines_list = {}
-        self.adjust_vals = {"ghost border" : 10, "title bar" : 33, "trial n err" : 3}
-        self.gif = []               # Keep all the pictures taken in gif mode
-        self.gif_bounds = []        # keep track of x and y coords for gif area 
+        
         self.threads = []           # Keep track of used threads to join back later
         self.drawing_combo_box = []
+
+        #self.stop_drag = 0
+        #self.record_on = False      # Variable that tells the gif mode when to stop taking pictures
+        #self.adjust_vals = {"ghost border" : 10, "title bar" : 33, "trial n err" : 3}
+        #self.gif = []               # Keep all the pictures taken in gif mode
+        #self.gif_bounds = []        # keep track of x and y coords for gif area 
         
         print("snipping tool started")
 
@@ -344,13 +502,7 @@ class snipping_tool():
         root.after(0 , self.create_clip_window)
 
 
-    #***************** Run the record function in seperate thread to ensure it doesn't block main program *************. 
-    def record_thread(self):
-        if not self.record_on:
-            if len(self.gif_bounds) == 4:
-                a = Thread(target = self.record, args = ())
-                self.threads.append(a)
-                a.start()
+
 
 
     #*****************                                *************. 
@@ -368,8 +520,6 @@ class snipping_tool():
             monitor_ids[windll.user32.MonitorFromPoint(i.x, i.y, 2)] = i # param_1 = monitor_x + 1,  param_2 = monitor_y,  param_3 [0], [1], [3] = monitor_default to null, monitor_default to primary, monitor_default to nearest 
         print(f"\nstart monitor  = {self.monitorid}")
         if self.monitorid in list(monitor_ids.keys()):# and self.end_monitorid in list(monitor_ids.keys()): 
-            #print('monitor is in')
-            #if self.monitorid == self.end_monitorid:
             monitor = monitor_ids[self.monitorid] 
             x1, y1, x2, y2 = int(x1 + monitor.x), int(y1 + monitor.y), int(x2 + monitor.x), int(y2 + monitor.y)
             try:
@@ -380,27 +530,6 @@ class snipping_tool():
                 img, dispImg = None, None
             return dispImg, (monitor.x, monitor.y), img
         return None, 0, None
-
-
-    
-        
-
-    #***************** Take rapid screenshots of selected area and stick them into an array *************. 
-    def record(self):
-        self.record_on = True
-
-        print(f"\nstart monitor = {self.monitorid}")
-        while self.record_on == True:
-            rct = (self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3])#rct = (self.gif_bounds[0] + x1, self.gif_bounds[1] + y1, self.gif_bounds[2] + x2, self.gif_bounds[3] + y2)
-            img = getRectAsImage(rct) #x1, y1, x2, y2 = self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[0]
-            self.gif.append(img)
-            del img
-            print('image taken at', rct)
-            time.sleep(0.05)
-        gc.collect()
-
-
-
 
 
 
@@ -591,102 +720,16 @@ class snipping_tool():
 
 
 
-    #***************** Stop taking pictures, save the gif *************. 
-    def stop_gif(self):
-        self.record_on = False
-
-        for widget in root.winfo_children():
-            if isinstance(widget, Toplevel):
-                if str(widget.title()).find("clip_window") != -1:
-                    widget.attributes('-alpha', .3)  
-
-        for i in self.threads.copy():
-            i.join()
-            self.threads.remove(i)
-        gc.collect()
-
+    
 
         
-    #***************** Save gif *************. 
-    def save_gif(self):
-        self.record_on = False
-
-        for widget in root.winfo_children():
-            if isinstance(widget, Toplevel):
-                if str(widget.title()).find("clip_window") != -1: # Set all clip windows back to regular transparency 
-                    widget.attributes('-alpha', .3)  
-        
-        for i in self.threads.copy():
-            i.join()                # Clean up threads
-            del self.threads[self.threads.index(i)]
-
-        savename = datetime.datetime.now()
-        savename = savename.strftime("%Y-%m-%d_%H-%M-%S.%f")
-        f = asksaveasfile(initialfile = f"{savename}", mode='w', defaultextension=".gif", parent=root)
-
-        if f is None: return
-        print(f.name)
-
-        try:
-            with imageio.get_writer(f"{f.name}", mode='I') as writer:
-                for i in self.gif.copy(): 
-                    writer.append_data(numpy.array(i))    
-                    del self.gif[self.gif.index(i)]
-            if self.open_on_save: explore(f.name)
-        except KeyError:
-            messagebox.showerror(title="", message="The filetype {} is most likely unsupported".format(format), parent=root)
-            print(KeyError)
-        except Exception as e: 
-            print(e)
-            messagebox.showerror(title="", message=f"There was an error that was not a problem with the filetype please tell minnowo \n{e}", parent=root)
-        del f
-        self.gif.clear()
-        self.destroy_all()
-        gc.collect()
+    
 
 
 
     #***************** When you let go of the gif select window, get coords, create buttons to start/stop recording the video *************. 
-    def OnReleaseGif(self, event): 
-        def exit_gif(widget):
-            widget.destroy()
-            self.record_on = False
-            self.gif.clear()
-            gc.collect()
-
-        def show_border(widget):
-            self.stop_drag = 0
-            try: widget.itemconfig("gif_area", outline = self.border_color) # if the window is destroyed before the 500 ms delay it throws an error 
-            except:pass
-
-        def moving_window(event, widget):
-            if not self.stop_drag:
-                gif_bounds = widget.find_withtag("gif_area")
-                winx, winy = (event.widget.winfo_x() + self.adjust_vals["ghost border"],event.widget.winfo_y() + self.adjust_vals["title bar"]) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
-                bounds = [i for i in widget.bbox(gif_bounds[0])]
-                self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-self.adjust_vals["trial n err"], winy + bounds[3]-self.adjust_vals["trial n err"]] # idk why -3 makes it take pics inside the red border but it does
-                widget.itemconfig("gif_area", outline = "")
-            else:
-                gif_bounds = widget.find_withtag("gif_area")
-                winx, winy = (event.widget.winfo_x() + self.adjust_vals["ghost border"],event.widget.winfo_y() + self.adjust_vals["title bar"]) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
-                bounds = [i for i in widget.bbox(gif_bounds[0])]
-                self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-self.adjust_vals["trial n err"], winy + bounds[3]-self.adjust_vals["trial n err"]] # idk why -3 makes it take pics inside the red border but it does
-                root.after_cancel(self.stop_drag)
-            self.stop_drag = root.after(500, lambda w = widget : show_border(w))
-
-        def on_enter(event, widget):
-            try:
-                xy = [int(i.strip()) for i in event.widget.get().split(" ")]
-                widget.geometry(f"+{xy[0]-9}+{xy[1]-32}")
-            except:
-                return
-                
+    def OnReleaseGif(self, event):           
         self.destroy_all(0)
-
-        for widget in root.winfo_children():
-                if isinstance(widget, Toplevel):
-                    if str(widget.title()).find("GifWindow") != -1:
-                        exit_gif(widget)
 
         #self.end_monitorid = windll.user32.MonitorFromPoint(int(root.winfo_pointerx()), int(root.winfo_pointery()), 2) # Set finsih monitor id
         self.curx, self.cury = (event.x, event.y)
@@ -701,63 +744,12 @@ class snipping_tool():
             x1, y1, x2, y2 = (int(self.curx), int(self.cury), int(self.start_x), int(self.start_y)) # Left Up
         print(f"({x1}, {y1}) x ({x2}, {y2}) --> {datetime.datetime.now()}")
 
-        
-
         monitor_ids = {} 
         for i in get_monitors():
             monitor_ids[windll.user32.MonitorFromPoint(i.x, i.y, 2)] = i
         monitor = monitor_ids[self.monitorid] 
 
-        self.gif_bounds.clear()
-        for i in [monitor.x + x1, monitor.y + y1, monitor.x + x2, monitor.y + y2]: self.gif_bounds.append(i)
-        print(self.gif_bounds)
-        gif_area = Toplevel(root)
-        gif_area.title("GifWindow")
-        gif_area.minsize(x2-x1, y2-y1)
-        gif_area.resizable(0,0)
-        gif_area.attributes("-transparent", "blue")
-        gif_area.attributes('-topmost', 'true')
-        gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1-9 + monitor.x, y1-32+ monitor.y))
-
-        bg = Canvas(gif_area, bg="grey11", highlightthickness = 0)
-        bg.pack(expand = True, fill = BOTH)
-        bg.create_rectangle(0, 0, x2-x1+1, y2-y1+1, outline= self.border_color, width=1, fill="blue", tag = "gif_area")
-
-
-        gif_area.protocol("WM_DELETE_WINDOW", lambda widget = gif_area : exit_gif(widget))
-        gif_area.bind('<Configure>', lambda event, widget = bg : moving_window(event, widget))
-
-        buttons = Toplevel(gif_area)
-        buttons.protocol("WM_DELETE_WINDOW", lambda widget = gif_area : exit_gif(widget))                              # If you hit the X on the button window destroy the clip windows 
-        buttons.lift()                                                                      # Bring in front of clipping windows 
-        buttons.resizable(0,0)                                                              # Cant resize
-        buttons.attributes("-topmost", True)                                                # Always on top
-        mousex, mousey = root.winfo_pointerxy()                                             # Get mouse xy
-        buttons.geometry(f"{250}x{50}+{mousex - 115}+{mousey - 10}")                        # Spawn the window on your mouse
-
-
-        #***************** Make buttons *************. 
-        record_button = Button(buttons, text = "Start", command = self.record_thread)
-        record_button.pack(side = LEFT,expand = True, fill = BOTH)
-
-        stop_record_button = Button(buttons, text = "Stop", command = self.stop_gif)
-        stop_record_button.pack(side = LEFT, expand = True, fill = BOTH)
-
-        save_record_button = Button(buttons, text = "Save", command = self.save_gif)
-        save_record_button.pack(side = LEFT, expand = True, fill = BOTH)
-
-        xypos_label = Label(buttons, text = "XY Position  ")
-        xypos_label.pack(anchor = E)
-
-        xyposition_of_main = ttk.Combobox(buttons, width = 9, values = [(i, x//2) for i, x in enumerate(numpy.arange(0, 4096))])
-        xyposition_of_main.pack()
-
-        xyposition_of_main.bind("<Return>", lambda event, win = gif_area : on_enter(event, win))
-        xyposition_of_main.bind("<<ComboboxSelected>>", lambda event, win = gif_area : on_enter(event, win))
-
-    
-
-
+        Create_gif(self.open_on_save, self.border_color, monitor,x1, y1, x2, y2)
 
 
 
@@ -1373,8 +1365,6 @@ class snipping_tool():
 
     #***************** Destroy all toplevel widgets or only destroy clpping windows *************.###
     def destroy_all(self, destroy = 0):
-        del self.gif
-        self.gif = []
         if destroy:
             print("\nDestroying all toplevel\n")
             self.zoomcycle = 0
