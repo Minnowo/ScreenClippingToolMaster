@@ -1,7 +1,7 @@
 import sys, os, signal, time, threading, PIL.Image, ctypes, datetime, gc, pytesseract, imageio, numpy, io, win32clipboard
 import keyboard as kb
 import json
-#import subprocess
+import subprocess
 from infi.systray import SysTrayIcon 
 from tkinter import *
 from tkinter.filedialog import asksaveasfile, askopenfilename
