@@ -232,11 +232,6 @@ class Create_gif:
         self.gif_bounds = [i for i in [monitor.x + x1, monitor.y + y1, monitor.x + x2, monitor.y + y2]]
         print(self.gif_bounds)
 
-        for widget in root.winfo_children():
-                if isinstance(widget, Toplevel):
-                    if str(widget.title()).find("GifWindow") != -1:
-                        self.exit_gif(widget)
-
         self.gif_area = Toplevel(root)
         self.gif_area.title("GifWindow")
         self.gif_area.minsize(x2-x1, y2-y1)
@@ -254,23 +249,22 @@ class Create_gif:
         self.gif_area.bind('<Configure>', self.moving_window)
 
         buttons = Toplevel(self.gif_area)
-        buttons.protocol("WM_DELETE_WINDOW", self.exit_gif)                              # If you hit the X on the button window destroy the clip windows 
-        buttons.lift()                                                                      # Bring in front of clipping windows 
+        buttons.title("GifControls")
         buttons.resizable(0,0)                                                              # Cant resize
         buttons.attributes("-topmost", True)                                                # Always on top
         mousex, mousey = root.winfo_pointerxy()                                             # Get mouse xy
-        buttons.geometry(f"{250}x{50}+{mousex - 115}+{mousey - 10}")                        # Spawn the window on your mouse
+        buttons.geometry(f"{250}x{50}+{mousex - 25}+{mousey - 16}")                        # Spawn the window on your mouse
 
 
+        buttons.protocol("WM_DELETE_WINDOW", self.exit_gif) 
         #***************** Make buttons *************. 
-        record_button = Button(buttons, text = "Start", command = self.record_thread)
-        record_button.pack(side = LEFT,expand = True, fill = BOTH)
-
+        record_button =      Button(buttons, text = "Start", command = self.record_thread)
         stop_record_button = Button(buttons, text = "Stop", command = self.stop_gif)
-        stop_record_button.pack(side = LEFT, expand = True, fill = BOTH)
-
         save_record_button = Button(buttons, text = "Save", command = self.save_gif)
-        save_record_button.pack(side = LEFT, expand = True, fill = BOTH)
+
+        record_button.pack      (side = LEFT,expand = True, fill = BOTH)
+        stop_record_button.pack (side = LEFT, expand = True, fill = BOTH)
+        save_record_button.pack (side = LEFT, expand = True, fill = BOTH)
 
         xypos_label = Label(buttons, text = "XY Position  ")
         xypos_label.pack(anchor = E)
@@ -716,15 +710,6 @@ class snipping_tool():
     #*****************                       *************. 
     #***************** Gif display Functions *************. 
     #*****************                       *************. 
-
-
-
-
-    
-
-        
-    
-
 
 
     #***************** When you let go of the gif select window, get coords, create buttons to start/stop recording the video *************. 
