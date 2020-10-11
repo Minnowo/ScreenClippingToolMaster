@@ -371,14 +371,14 @@ class Create_gif:
         #bounds = [abs(i) for i in self.canvas.bbox(gif_bounds[0])]
 
         #self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2], winy + bounds[3]] 
-        self.gif_bounds = [winx + 1, winy + 1, winx + self.gif_area.winfo_width() - 1, winy + self.gif_area.winfo_height() - 1] 
+        self.gif_bounds = [winx + 1, winy + 1, winx + self.gif_area.winfo_width() - 1, winy + self.gif_area.winfo_height() - 1] # the +- 1 make it take pictures inside the box
 
         self.stop_drag = root.after(500, self.show_border)
 
     def on_enter(self, event):
         try:
             xy = [int(i.strip()) for i in event.widget.get().split(" ")]
-            self.gif_area.geometry(f"+{xy[0]-9}+{xy[1]-32}")
+            self.gif_area.geometry(f"+{xy[0]-1}+{xy[1]-1}") # want to move based on the picture location not the border of the rectangle
         except:
             return
 
