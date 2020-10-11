@@ -30,12 +30,7 @@ def resource_path(relative_path):
             return os.path.join(sys._MEIPASS, relative_path)
         return os.path.join(os.path.abspath("."), relative_path)
 
-def get_complementary(color):
-    color = color[1:]
-    color = int(color, 16)
-    comp_color = 0xFFFFFF ^ color
-    comp_color = "#%06X" % comp_color
-    return comp_color
+
 
 def explore(path):                                                      # https://stackoverflow.com/a/50965628/13994936
     FILEBROWSER_PATH = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
@@ -177,7 +172,6 @@ class cooldown:
     def remaining(self, value):
         self.calltime = time.time() - self.timeout + value
 
-    
 
 class Global_hotkeys:
     import ctypes
@@ -233,17 +227,17 @@ class Create_gif:
         print(self.gif_bounds)
 
         self.gif_area = Toplevel(root)
+        self.gif_area.overrideredirect(1)
         self.gif_area.title("GifWindow")
         self.gif_area.minsize(x2-x1, y2-y1)
         self.gif_area.resizable(0,0)
         self.gif_area.attributes("-transparent", "blue")
         self.gif_area.attributes('-topmost', 'true')
-        self.gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1-9 + monitor.x, y1-32+ monitor.y))
+        self.gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1 + monitor.x, y1 + monitor.y))
 
         self.canvas = Canvas(self.gif_area, bg="grey11", highlightthickness = 0)
         self.canvas.pack(expand = True, fill = BOTH)
         self.canvas.create_rectangle(0, 0, x2-x1+1, y2-y1+1, outline= self.border_color, width=1, fill="blue", tag = "gif_area")
-
 
         self.gif_area.protocol("WM_DELETE_WINDOW", self.exit_gif)
         self.gif_area.bind('<Configure>', self.moving_window)
@@ -253,27 +247,45 @@ class Create_gif:
         buttons.resizable(0,0)                                                              # Cant resize
         buttons.attributes("-topmost", True)                                                # Always on top
         mousex, mousey = root.winfo_pointerxy()                                             # Get mouse xy
-        buttons.geometry(f"{250}x{50}+{mousex - 25}+{mousey - 16}")                        # Spawn the window on your mouse
+        buttons.geometry(f"+{mousex - 25}+{mousey - 16}")                        # Spawn the window on your mouse
 
+        
 
         buttons.protocol("WM_DELETE_WINDOW", self.exit_gif) 
         #***************** Make buttons *************. 
-        record_button =      Button(buttons, text = "Start", command = self.record_thread)
-        stop_record_button = Button(buttons, text = "Stop", command = self.stop_gif)
-        save_record_button = Button(buttons, text = "Save", command = self.save_gif)
+        record_button =      Button(buttons, text = "Start", command = self.record_thread, width = 10)
+        stop_record_button = Button(buttons, text = "Stop",  command = self.stop_gif,      width = 10)
+        save_record_button = Button(buttons, text = "Save",  command = self.save_gif,      width = 10)
 
-        record_button.pack      (side = LEFT,expand = True, fill = BOTH)
-        stop_record_button.pack (side = LEFT, expand = True, fill = BOTH)
-        save_record_button.pack (side = LEFT, expand = True, fill = BOTH)
+        record_button.grid      (column = 0, row = 0,  sticky = EW)
+        stop_record_button.grid (column = 1, row = 0,  sticky = EW)
+        save_record_button.grid (column = 2, row = 0,  sticky = EW)
 
         xypos_label = Label(buttons, text = "XY Position  ")
-        xypos_label.pack(anchor = E)
+        xypos_label.grid (column = 0, row = 1,  sticky = EW)
 
         xyposition_of_main = ttk.Combobox(buttons, width = 9, values = [(i, x//2) for i, x in enumerate(numpy.arange(0, 4096))])
-        xyposition_of_main.pack()
+        xyposition_of_main.grid (column = 0, row = 2,  sticky = EW)
+
+        drag_canvas = Canvas(buttons, width = 0, height = 0, bg = "grey")
+        drag_canvas.grid(column = 1, row = 1, columnspan = 2, rowspan = 2, sticky = NSEW)
+
+        drag_canvas.bind("<Button-1>",  lambda event, win = self.gif_area :  self.start_pos(event, win))
+        drag_canvas.bind("<B1-Motion>", lambda event, win = self.gif_area :  self.move(event, win))
 
         xyposition_of_main.bind("<Return>", self.on_enter)
         xyposition_of_main.bind("<<ComboboxSelected>>", self.on_enter)
+
+    def start_pos(self, event, win):
+        self.tmpx = event.x
+        self.tmpy = event.y
+        win.geometry("+%s+%s" % (root.winfo_pointerx() - win.winfo_width()//2, root.winfo_pointery() - win.winfo_height()//2))
+        event.widget.focus_set()
+
+    def move(self, event, win):
+        win.geometry("+%s+%s" % (event.x - self.tmpx + win.winfo_x() , event.y - self.tmpy + win.winfo_y()))
+        self.tmpx = event.x
+        self.tmpy = event.y
 
 
     #***************** Run the record function in seperate thread to ensure it doesn't block main program *************. 
@@ -354,10 +366,12 @@ class Create_gif:
         else:
             root.after_cancel(self.stop_drag)
 
-        gif_bounds = self.canvas.find_withtag("gif_area")
-        winx, winy = (self.gif_area.winfo_x() + self.adjust_vals["ghost border"], self.gif_area.winfo_y() + self.adjust_vals["title bar"]) # 10 adjusts the x position so that it acts like there is no invis border 10 px to the left of the window 33 is the height of the title bar +1
-        bounds = [i for i in self.canvas.bbox(gif_bounds[0])]
-        self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2]-self.adjust_vals["trial n err"], winy + bounds[3]-self.adjust_vals["trial n err"]] # idk why -3 makes it take pics inside the red border but it does
+        #gif_bounds = self.canvas.find_withtag("gif_area")
+        winx, winy = (self.gif_area.winfo_x(), self.gif_area.winfo_y())
+        #bounds = [abs(i) for i in self.canvas.bbox(gif_bounds[0])]
+
+        #self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2], winy + bounds[3]] 
+        self.gif_bounds = [winx + 1, winy + 1, winx + self.gif_area.winfo_width() - 1, winy + self.gif_area.winfo_height() - 1] 
 
         self.stop_drag = root.after(500, self.show_border)
 
@@ -750,7 +764,7 @@ class Drawing_Settings:
         self.parent = win
         self.update_variable_function = update_variable_function
 
-        self.mouse_rect = canvas.create_rectangle(0, 0, 0, 0,outline = get_complementary(self.line_color),tag = "mouse_cirlce")
+        self.mouse_rect = canvas.create_rectangle(0, 0, 0, 0,outline = self.get_complementary(self.line_color),tag = "mouse_cirlce")
 
         win.attributes('-topmost', 'false')
         win.overrideredirect(0)
@@ -861,7 +875,7 @@ class Drawing_Settings:
                     self.combo_box.remove(i)
 
     def change_rect_color(self, event):
-            event.widget.itemconfig(self.mouse_rect, outline= get_complementary(self.line_color))
+            event.widget.itemconfig(self.mouse_rect, outline= self.get_complementary(self.line_color))
             event.widget.focus_set()
 
     def change_line_color(self):
@@ -895,7 +909,7 @@ class Drawing_Settings:
                 if isinstance(x, Canvas):
                     button = Button(self.clear_menu, text = i.title(), command = lambda canvas = x, tag = "<drawnlines>" : canvas.delete(tag))
                     button.pack()
-                    button.bind("<Enter>", lambda event, canvas = x, color = get_complementary(x["bg"]) : self.update(event, canvas, color))
+                    button.bind("<Enter>", lambda event, canvas = x, color = self.get_complementary(x["bg"]) : self.update(event, canvas, color))
                     button.bind("<Leave>", lambda event, canvas = x, color = x["bg"] : self.update(event, canvas, color))
 
     def enable_draw(self, *args):
@@ -925,6 +939,14 @@ class Drawing_Settings:
 
     def follow_mouse(self, event):
             self.adjust_mouse_rect(event.x, event.y, self.line_width//2, event.widget, self.mouse_rect)
+
+    def get_complementary(self, color):
+        color = color[1:]
+        color = int(color, 16)
+        comp_color = 0xFFFFFF ^ color
+        comp_color = "#%06X" % comp_color
+        return comp_color
+
 
 class snipping_tool():
 
