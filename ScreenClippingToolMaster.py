@@ -223,6 +223,12 @@ class Create_gif:
         self.open_on_save = open_on_save
         self.border_color = border_color
         self.stop_drag = 0
+        self.hide_border_on_drag = IntVar(value = 1)
+        self.hide_border_always = IntVar(value = 0)
+        self.hide_border_never  = IntVar(value = 0)
+        self.center_mouse_always = IntVar(value = 0)
+        self.center_mouse_never = IntVar(value = 0)
+        self.center_mouse_while_off = IntVar(value = 1)
         self.gif_bounds = [i for i in [monitor.x + x1, monitor.y + y1, monitor.x + x2, monitor.y + y2]]
         print(self.gif_bounds)
 
@@ -261,11 +267,40 @@ class Create_gif:
         stop_record_button.grid (column = 1, row = 0,  sticky = EW)
         save_record_button.grid (column = 2, row = 0,  sticky = EW)
 
-        xypos_label = Label(buttons, text = "XY Position  ")
-        xypos_label.grid (column = 0, row = 1,  sticky = EW)
+
+        xypos_label =           Label(buttons, text = "XY Position  ")
+        hide_border_on_drag =   Label(buttons, text = "HideBorderOnDrag:")
+        center_on_drag =        Label(buttons, text = "CenterMouseOnDrag:")
+
+        xypos_label.grid         (column = 0, row = 1,  sticky = EW)
+        hide_border_on_drag.grid (column = 0, row = 3,  sticky = EW)
+        center_on_drag.grid      (column = 1, row = 3,  sticky = EW)
+
+
 
         xyposition_of_main = ttk.Combobox(buttons, width = 9, values = [(i, x//2) for i, x in enumerate(numpy.arange(0, 4096))])
         xyposition_of_main.grid (column = 0, row = 2,  sticky = EW)
+
+
+
+        self.hide_border_on_drag_if_running = Checkbutton(buttons, text = "WhileRunning",    variable = self.hide_border_on_drag, command = self.while_on_hide_border)
+        self.hide_border_on_drag_always =     Checkbutton(buttons, text = "Always"      ,    variable = self.hide_border_always, command = self.always_hide_border)
+        self.hide_border_on_drag_never =      Checkbutton(buttons, text =  "Never"      ,     variable = self.hide_border_never, command = self.never_hide_border)
+
+        self.center_mouse_while_not_running = Checkbutton(buttons, text = "WhileNotRunning", variable = self.center_mouse_while_off, command = self.while_not_on_center)
+        self.center_mouse_on_box_always =     Checkbutton(buttons, text = "Always",          variable = self.center_mouse_always, command = self.always_center_mouse)
+        self.center_mouse_on_box_never =      Checkbutton(buttons, text = "Never",           variable = self.center_mouse_never, command = self.never_center_mouse)
+        
+
+        self.hide_border_on_drag_if_running.grid (column = 0, row = 4,  sticky = W)
+        self.hide_border_on_drag_always.grid     (column = 0, row = 5,  sticky = W)
+        self.hide_border_on_drag_never.grid      (column = 0, row = 6,  sticky = W)
+
+        self.center_mouse_while_not_running.grid (column = 1, row = 4,  sticky = W)
+        self.center_mouse_on_box_always.grid     (column = 1, row = 5,  sticky = W)
+        self.center_mouse_on_box_never.grid      (column = 1, row = 6,  sticky = W)
+        
+
 
         drag_canvas = Canvas(buttons, width = 0, height = 0, bg = "grey")
         drag_canvas.grid(column = 1, row = 1, columnspan = 2, rowspan = 2, sticky = NSEW)
@@ -276,17 +311,49 @@ class Create_gif:
         xyposition_of_main.bind("<Return>", self.on_enter)
         xyposition_of_main.bind("<<ComboboxSelected>>", self.on_enter)
 
+    def while_on_hide_border(self):  
+        self.hide_border_on_drag_always.deselect()
+        self.hide_border_on_drag_never.deselect()
+
+
+    def always_hide_border(self):
+        self.hide_border_on_drag_if_running.deselect()
+        self.hide_border_on_drag_never.deselect()
+
+
+    def never_hide_border(self):
+        self.hide_border_on_drag_always.deselect()
+        self.hide_border_on_drag_if_running.deselect()
+
+
+    def while_not_on_center(self):
+        self.center_mouse_on_box_always.deselect()
+        self.center_mouse_on_box_never.deselect()
+
+
+    def always_center_mouse(self):
+        self.center_mouse_while_not_running.deselect()
+        self.center_mouse_on_box_never.deselect()
+
+
+    def never_center_mouse(self):
+        self.center_mouse_on_box_always.deselect()
+        self.center_mouse_while_not_running.deselect()
+
+
     def start_pos(self, event, win):
         self.tmpx = event.x
         self.tmpy = event.y
-        win.geometry("+%s+%s" % (root.winfo_pointerx() - win.winfo_width()//2, root.winfo_pointery() - win.winfo_height()//2))
+
+        if self.center_mouse_always.get() or (not self.record_on and self.center_mouse_while_off.get()) and not self.center_mouse_never.get():
+            win.geometry("+%s+%s" % (root.winfo_pointerx() - win.winfo_width()//2, root.winfo_pointery() - win.winfo_height()//2))
         event.widget.focus_set()
+
 
     def move(self, event, win):
         win.geometry("+%s+%s" % (event.x - self.tmpx + win.winfo_x() , event.y - self.tmpy + win.winfo_y()))
         self.tmpx = event.x
         self.tmpy = event.y
-
 
     #***************** Run the record function in seperate thread to ensure it doesn't block main program *************. 
     def record_thread(self):
@@ -308,7 +375,6 @@ class Create_gif:
             print('image taken at', rct)
             time.sleep(0.05)
         gc.collect()
-
 
     #***************** Stop taking pictures, save the gif *************. 
     def stop_gif(self):
@@ -349,31 +415,31 @@ class Create_gif:
         self.gif.clear()
         gc.collect()
 
+
     def exit_gif(self):
             self.gif_area.destroy()
             self.record_on = False
             self.gif.clear()
             gc.collect()
 
+
     def show_border(self):
         self.stop_drag = 0
         try: self.canvas.itemconfig("gif_area", outline = self.border_color) # if the window is destroyed before the 500 ms delay it throws an error 
         except:pass
 
+
     def moving_window(self, event):
-        if not self.stop_drag:
+        if (not self.stop_drag and self.hide_border_always.get()) or (self.record_on and self.hide_border_on_drag.get()):
             self.canvas.itemconfig("gif_area", outline = "")
-        else:
+
+        if self.stop_drag:
             root.after_cancel(self.stop_drag)
 
-        #gif_bounds = self.canvas.find_withtag("gif_area")
         winx, winy = (self.gif_area.winfo_x(), self.gif_area.winfo_y())
-        #bounds = [abs(i) for i in self.canvas.bbox(gif_bounds[0])]
-
-        #self.gif_bounds = [winx + bounds[0], winy + bounds[1], winx + bounds[2], winy + bounds[3]] 
         self.gif_bounds = [winx + 1, winy + 1, winx + self.gif_area.winfo_width() - 1, winy + self.gif_area.winfo_height() - 1] # the +- 1 make it take pictures inside the box
-
         self.stop_drag = root.after(500, self.show_border)
+
 
     def on_enter(self, event):
         try:
