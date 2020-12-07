@@ -9,10 +9,23 @@ from tkinter import messagebox, ttk
 from tkinter.colorchooser import askcolor
 from PIL import ImageGrab, Image, ImageTk
 from threading import Thread, Timer
-from screeninfo import get_monitors
+#from screeninfo import get_monitors
 from ctypes import windll, Structure, c_ulong, byref
 from desktopmagic.screengrab_win32 import getDisplayRects, saveScreenToBmp, saveRectToBmp, getScreenAsImage, getRectAsImage, getDisplaysAsImages
 from pynput import keyboard
+import clr
+
+#***************** import dll *************. 
+filename = os.path.join(os.getcwd(), 'screeninfo.dll')
+print(filename)
+
+
+#add referance 
+clr.AddReference(filename)
+from screeninfo_c import ScreenInfo
+get_monitors = ScreenInfo.GetMonitors
+monitor_from_point = ScreenInfo.MonitorFromPoint
+
 
 
 #***************** Set process DPI aware for all monitors *************. 
@@ -229,7 +242,7 @@ class Create_gif:
         self.center_mouse_always = IntVar(value = 0)
         self.center_mouse_never = IntVar(value = 0)
         self.center_mouse_while_off = IntVar(value = 1)
-        self.gif_bounds = [i for i in [monitor.x + x1, monitor.y + y1, monitor.x + x2, monitor.y + y2]]
+        self.gif_bounds = [i for i in [monitor.X + x1, monitor.Y + y1, monitor.X + x2, monitor.Y + y2]]
         print(self.gif_bounds)
 
         self.gif_area = Toplevel(root)
@@ -239,7 +252,7 @@ class Create_gif:
         self.gif_area.resizable(0,0)
         self.gif_area.attributes("-transparent", "blue")
         self.gif_area.attributes('-topmost', 'true')
-        self.gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1 + monitor.x, y1 + monitor.y))
+        self.gif_area.geometry("{}x{}+{}+{}".format(x2-x1+2, y2-y1+2, x1 + monitor.X, y1 + monitor.Y))
 
         self.canvas = Canvas(self.gif_area, bg="grey11", highlightthickness = 0)
         self.canvas.pack(expand = True, fill = BOTH)
@@ -1024,7 +1037,8 @@ class snipping_tool():
         self.start_y = None         # On click y
         self.curx = None            # After releasing x
         self.cury = None            # After releasing y
-        self.monitorid = None       # Monitor id of the monitor you started on
+        #self.monitorid = None       # Monitor id of the monitor you started on
+        self.monitor = None         # monitor that you started on
         self.zoom_image = None      # Image displayed when you zoom in 
         self.img = None             # Temporary image that is shown when you zoom in
 
@@ -1139,21 +1153,19 @@ class snipping_tool():
 
     #***************** Take the screenshot at select location on selected monitor *************. 
     def screenshot(self, x1, y1, x2, y2):
-        monitor_ids = {} 
-        for i in get_monitors():
-            monitor_ids[windll.user32.MonitorFromPoint(i.x, i.y, 2)] = i # param_1 = monitor_x + 1,  param_2 = monitor_y,  param_3 [0], [1], [3] = monitor_default to null, monitor_default to primary, monitor_default to nearest 
-        print(f"\nstart monitor  = {self.monitorid}")
-        if self.monitorid in list(monitor_ids.keys()):# and self.end_monitorid in list(monitor_ids.keys()): 
-            monitor = monitor_ids[self.monitorid] 
-            x1, y1, x2, y2 = int(x1 + monitor.x), int(y1 + monitor.y), int(x2 + monitor.x), int(y2 + monitor.y)
-            try:
-                img = getRectAsImage((x1, y1, x2, y2)) # take image
-                dispImg = ImageTk.PhotoImage(img)
-            except Exception as e: 
-                print(e)
-                img, dispImg = None, None
-            return dispImg, (monitor.x, monitor.y), img
-        return None, 0, None
+
+        print(f"monitor = {self.monitor.name}, {self.monitor.bounds}, {self.monitor.hashCode}")
+        monitor = self.monitor.bounds
+        x1, y1, x2, y2 = int(x1 + monitor.X), int(y1 + monitor.Y), int(x2 + monitor.X), int(y2 + monitor.Y)
+
+        try:
+            img = getRectAsImage((x1, y1, x2, y2)) # take image
+            dispImg = ImageTk.PhotoImage(img)
+        except Exception as e: 
+            print(e)
+            img, dispImg = None, None
+        return dispImg, (monitor.X, monitor.Y), img
+
 
 
 
@@ -1169,9 +1181,10 @@ class snipping_tool():
     def create_gif_window(self):
         self.destroy_all(0)
 
-        monitors = get_monitors()
+        monitors = [i for i in get_monitors()]
         for index, monitor in enumerate(monitors): 
-            monx = int(monitor.x); mony = int(monitor.y); width = int(monitor.width); height = int(monitor.height)
+            bounds = monitor.bounds
+            monx = int(bounds.X); mony = int(bounds.Y); width = int(bounds.Width); height = int(bounds.Height)
 
             master_screen = Toplevel(root)
             master_screen.title(f"clip_window_gif{index}")
@@ -1204,11 +1217,12 @@ class snipping_tool():
     def create_clip_window(self):
         self.destroy_all(0)
 
-        monitors = get_monitors()
+        monitors = [i for i in get_monitors()]
         if self.delayed_clip:
             if any([i for i in self.save_img_data.keys() if i.find("delay_clip") != -1]): # If there are any delay_clips in the dictionary display them
-                for x, i in enumerate(monitors): 
-                    self.lines_list[x] = {"dims" : [i.width, i.height, i.name], "lines" : None}
+                for x, i in enumerate(monitors):
+                    bounds = i.bounds
+                    self.lines_list[x] = {"dims" : [bounds.Width, bounds.Height, i.name], "lines" : None}
                     delayed_clips = [i for i in self.save_img_data.keys() if i.find("delay_clip") != -1] # Get all the clips tagged with delay_clip                   
                     img = ImageTk.PhotoImage(self.save_img_data[delayed_clips[x]])
                     self.make_clip_win(i, 1, img)
@@ -1219,16 +1233,18 @@ class snipping_tool():
                     del self.save_img_data[i]       # Remove all the delay_clips 
             else:                                   # If there are no clips take screenshots 
                 for i in monitors:  
-                    img = getRectAsImage((i.x, i.y, i.width + i.x, i.height + i.y))
+                    bounds = i.bounds
+                    img = getRectAsImage((bounds.X, bounds.Y, bounds.Width + bounds.X, bounds.Height + bounds.Y))
                     date_time = str(datetime.datetime.now()) + "delay_clip"         # Name the clip using the date time and mark it as a delay_clip
                     self.save_img_data[date_time] = img
                     del img
                     print("image saved")
         else:
             for x, i in enumerate(monitors): # Create clipping window for all monitors 
-                self.lines_list[x] = {"dims" : [i.width, i.height, i.name], "lines" : None}
+                bounds = i.bounds
+                self.lines_list[x] = {"dims" : [bounds.Width, bounds.Height, i.name], "lines" : None}
                 if self.snapshot:
-                    img = ImageTk.PhotoImage(getRectAsImage((i.x, i.y, i.width + i.x, i.height + i.y)))
+                    img = ImageTk.PhotoImage(getRectAsImage((bounds.X, bounds.Y, bounds.Width + bounds.X, bounds.Height + bounds.Y)))
                     self.make_clip_win(i, self.snapshot, img)
                     del img
                 else:
@@ -1239,7 +1255,8 @@ class snipping_tool():
 
     #***************** Make clip window *************. 
     def make_clip_win(self, monitorobj, snapshot, img = None):
-        monx = int(monitorobj.x); mony = int(monitorobj.y); width = int(monitorobj.width); height = int(monitorobj.height)
+        bounds = monitorobj.bounds
+        monx = int(bounds.X); mony = int(bounds.Y); width = int(bounds.Width); height = int(bounds.Height)
 
         master_screen = Toplevel(root)
         master_screen.title(f"clip_window_{datetime.datetime.now()}")   # Name the clip windows so they can all be destroyed later        
@@ -1309,6 +1326,7 @@ class snipping_tool():
         self.start_x = event.widget.canvasx(event.x)
         self.start_y = event.widget.canvasy(event.y)
         self.monitorid = windll.user32.MonitorFromPoint(int(root.winfo_pointerx()), int(root.winfo_pointery()), 2)
+        self.monitor =  monitor_from_point(int(root.winfo_pointerx()), int(root.winfo_pointery()))
 
         if self.snapshot or self.delayed_clip: 
             self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1)
@@ -1359,10 +1377,8 @@ class snipping_tool():
             x1, y1, x2, y2 = (int(self.curx), int(self.cury), int(self.start_x), int(self.start_y)) # Left Up
         print(f"({x1}, {y1}) x ({x2}, {y2}) --> {datetime.datetime.now()}")
 
-        monitor_ids = {} 
-        for i in get_monitors():
-            monitor_ids[windll.user32.MonitorFromPoint(i.x, i.y, 2)] = i
-        monitor = monitor_ids[self.monitorid] 
+        print(f"monitor = {self.monitor.name}, {self.monitor.bounds}, {self.monitor.hashCode}")
+        monitor = self.monitor.bounds
 
         Create_gif(self.open_on_save, self.border_color, monitor, x1, y1, x2, y2)
 
