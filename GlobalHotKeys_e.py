@@ -20,6 +20,7 @@ class GlobalHotKeys(object):
     """
  
     key_mapping = []
+    stop = False
     
     user32 = ctypes.windll.user32
  
@@ -29,8 +30,8 @@ class GlobalHotKeys(object):
     MOD_SHIFT = win32con.MOD_SHIFT
     MOD_WIN = win32con.MOD_WIN
 
-    PUNCTUATION_CHARACTERS = {"backspace" : 8, "tab" : 9, "enter" : 13, "shift" : 16, "control" : 17, "alt" : 18, "capslock" : 20, "escape" : 27, "space" : 32
-                              , "pageup" : 33, "pagedown" : 34, "end" : 35, "home" : 36, "left" : 37, "up" : 38, "right" : 39, "down" : 40, "delete" : 46
+    PUNCTUATION_CHARACTERS = {"BACKSPACE" : 8, "TAB" : 9, "ENTER" : 13, "SHIFT" : 16, "CONTROL" : 17, "ALT" : 18, "CAPSLOCK" : 20, "ESCAPE" : 27, "SPACE" : 32
+                              , "PAGEUP" : 33, "PAGEDOWN" : 34, "END" : 35, "HOME" : 36, "LEFT" : 37, "UP" : 38, "RIGHT" : 39, "DOWN" : 40, "DELETE" : 46
                               , ";" : 186, ":" : 186, "+" : 187, "=" : 187, "," : 188, "<" : 188, "-" : 189, "_" : 189, "." : 190, ">" : 190, "?" : 191
                               , "/" : 191, "`" : 192, "~" : 192, "[" : 219, "{" : 219, "\\" : 220, "|" : 220, "]" : 221, "}" : 221, "'" : 222, "\"" : 222}
  
@@ -69,7 +70,9 @@ class GlobalHotKeys(object):
  
         try:
             msg = ctypes.wintypes.MSG()
-            while cls.user32.GetMessageA(ctypes.byref(msg), None, 0, 0) != 0:
+            while cls.user32.GetMessageA(ctypes.byref(msg), None, 0, 0) != 0 and cls.stop == False:
+                print(cls.stop)
+                if cls.stop:break
                 if msg.message == win32con.WM_HOTKEY:
                     (vk, modifiers, func) = cls.key_mapping[msg.wParam]
                     if not func:
@@ -82,11 +85,14 @@ class GlobalHotKeys(object):
         finally:
             for index, (vk, modifiers, func) in enumerate(cls.key_mapping):
                 cls.user32.UnregisterHotKey(None, index)
+            cls.stop = False
+            cls.key_mapping.clear()
+            print("Hotkey loop has stopped")
  
     @classmethod
     def unregisterHotkKey(cls):
-        for index, (vk, modifiers, func) in enumerate(cls.key_mapping):
-                cls.user32.UnregisterHotKey(None, index)
+        cls.stop = True
+
 
     @classmethod
     def _include_defined_vks(cls):

@@ -2,6 +2,7 @@ import sys, os, signal, time, threading, PIL.Image, ctypes, datetime, gc, pytess
 import keyboard as kb
 import json
 import subprocess
+import win32con
 from infi.systray import SysTrayIcon 
 from tkinter import *
 from tkinter.filedialog import asksaveasfile, askopenfilename
@@ -531,8 +532,8 @@ class Settings:
 
 
         #***************** ComboBox *************. 
-        MODIFIERS = ["WindowsKey", "Alt", "Ctrl", "Shift", "None"]
-        KEYS = ['VK_' + chr(key_code) for key_code in (list (range(ord('A'), ord('Z') + 1)) + list(range(ord('0'), ord('9') + 1)) )]
+        MODIFIERS = ["Windows", "Alt", "Ctrl", "Shift", "None"]
+        KEYS = [chr(key_code) for key_code in (list (range(ord('A'), ord('Z') + 1)) + list(range(ord('0'), ord('9') + 1)) )] + [str(item)[3:] for item in win32con.__dict__ if item[:3] == 'VK_']  + list(GlobalHotKeys.PUNCTUATION_CHARACTERS)
 
         self.hotkey_1_modifyer_1 =   ttk.Combobox(self.settings_window_root,  values = MODIFIERS, width=12,  state='readonly')
         self.hotkey_1_modifyer_2 =   ttk.Combobox(self.settings_window_root,  values = MODIFIERS, width=12,  state='readonly')
@@ -591,32 +592,46 @@ class Settings:
             self.multiplyer = float(self.zoom_multiplyer_Combobox.get())
             self.border_thiccness = int(self.border_thiccness_combobox.get())
 
-            correct_modifyers_for_hotkey = {"WindowsKey" : "<cmd>", "Alt" : "<alt>", "Ctrl" : "<ctrl>", "Shift" : "<shift>"}
+            correct_modifyers_for_hotkey = {"Windows" : win32con.MOD_WIN, "Alt" : win32con.MOD_ALT, "Ctrl" : win32con.MOD_CONTROL, "Shift" : win32con.MOD_SHIFT}
+
+            VKS = {**{str(item)[3:] : win32con.__dict__[str(item)] for item in win32con.__dict__ if item[:3] == 'VK_'}, **{chr(key_code) : key_code for key_code in (list (range(ord('A'), ord('Z') + 1)) + list(range(ord('0'), ord('9') + 1)) )}, **GlobalHotKeys.PUNCTUATION_CHARACTERS}
+
+            #for key, value in VKS.items():
+            #    print(key, value)
 
             hotkey1 = list( dict.fromkeys([i for i in [self.hotkey_1_modifyer_1.get(), self.hotkey_1_modifyer_2.get(), self.hotkey_1_modifyer_3.get(), self.hotkey_1_key.get()] if i != "None"]))
             hotkey2 = list( dict.fromkeys([i for i in [self.hotkey_2_modifyer_1.get(), self.hotkey_2_modifyer_2.get(), self.hotkey_2_modifyer_3.get(), self.hotkey_2_key.get()] if i != "None"]))
 
-            hotkey1_formated = [correct_modifyers_for_hotkey[i] for i in hotkey1 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
-            hotkey2_formated = [correct_modifyers_for_hotkey[i] for i in hotkey2 if i in ["WindowsKey", "Alt", "Ctrl", "Shift"]]
+            if self.hotkey_visual_in_settings["current_hotkey_1"] != "+".join(hotkey1) or self.hotkey_visual_in_settings["current_hotkey_2"] != "+".join(hotkey2):
 
-            hotkey1_formated.append(hotkey1[-1].lower())
-            hotkey2_formated.append(hotkey2[-1].lower())
+                GlobalHotKeys.unregisterHotkKey()        
+                kb.send(self.hotkey_visual_in_settings["current_hotkey_1"]) # this is the dumbest thing ever but it works and i couldn't think of another way 
+                self.snippingclass.hotkey_thread.join()   
 
-            final_hotkey1 = "+".join(hotkey1_formated)
-            final_hotkey2 = "+".join(hotkey2_formated)
+                self.hotkey_visual_in_settings["current_hotkey_1"] = "+".join(hotkey1)
+                self.hotkey_visual_in_settings["current_hotkey_2"] = "+".join(hotkey2)
 
-            print(final_hotkey1)
-            print(final_hotkey2)
+                hotkey1_formated = [correct_modifyers_for_hotkey[i] for i in hotkey1 if i in ["Windows", "Alt", "Ctrl", "Shift"]]
+                hotkey2_formated = [correct_modifyers_for_hotkey[i] for i in hotkey2 if i in ["Windows", "Alt", "Ctrl", "Shift"]]
 
-            if 1==2:#final_hotkey1 != self.hotkey_visual_in_settings["current_hotkey_1"] or final_hotkey2 != self.hotkey_visual_in_settings["current_hotkey_2"]:
-                del hotkey1_formated[-1]
+                hotkey1_formated.append(hotkey1[-1])
+                hotkey2_formated.append(hotkey2[-1])
+
+                print(VKS[hotkey1_formated[-1]], sum(hotkey1_formated[:-1]))
+                #print(hotkey2_formated, VKS[hotkey2_formated[-1]]) 
+
+                #GlobalHotKeys.unregisterHotkKey()        
+                #kb.send(self.hotkey_visual_in_settings["current_hotkey_1"])
+                #self.snippingclass.hotkey_thread.join()      
                 try:
-                    Global_hotkeys.remove_hotkey(self.snippingclass.hwnd, self.snippingclass.clip_hotkey[3], self.snippingclass.clip_hotkey[0]) 
-                    self.snippingclass.clip_hotkey =  Global_hotkeys.create_hotkey(self.snippingclass.hwnd, 0, hotkey1_formated, hotkey1[-1].lower(), self.snippingclass.on_activate_i) 
-                    self.snippingclass.clip_hotkey = GlobalHotKeys.register(GlobalHotKeys.VK_Z, GlobalHotKeys.MOD_ALT, self.snippingclass.on_activate_i)
-                    self.snippingclass.gif_hotkey =  GlobalHotKeys.register(GlobalHotKeys.VK_C, GlobalHotKeys.MOD_ALT, self.snippingclass.on_activate_gif)
-                    print(f"Updating hotkeys")
-                except Exception as e:print(e)
+                    self.snippingclass.clip_hotkey = GlobalHotKeys.register(VKS[hotkey1_formated[-1]], sum(hotkey1_formated[:-1]), self.snippingclass.on_activate_i)
+                    self.snippingclass.gif_hotkey =  GlobalHotKeys.register(VKS[hotkey2_formated[-1]], sum(hotkey2_formated[:-1]), self.snippingclass.on_activate_gif)
+                except:
+                     messagebox.askquestion(title = "", message = "There was an error creating hotkeys you should restart the program", parent = root)
+                self.snippingclass.hotkey_thread = threading.Thread(target = GlobalHotKeys.listen)
+                self.snippingclass.hotkey_thread.start()
+                print(f"Updating hotkeys")
+
 
             if 1==2:
                 del hotkey2_formated[-1]
@@ -628,8 +643,8 @@ class Settings:
 
             
 
-            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : final_hotkey1,
-                                              "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : final_hotkey2}       
+            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : self.hotkey_visual_in_settings["current_hotkey_1"],
+                                              "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : self.hotkey_visual_in_settings["current_hotkey_2"]}       
             self.snippingclass.save_settings(self)
 
 
@@ -738,8 +753,8 @@ class Settings:
             except Exception as e:print(e)
 
 
-        self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
-                                          "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1,}
+        self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "Alt", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "Z", "current_hotkey_1" : 'Alt+Z',
+                                              "hotkey_2_modifyer_1" : "Alt", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "C", "current_hotkey_2" : 'Alt+C'}
         self.snippingclass.save_settings(self)
         self.snippingclass.settings_window()
 
@@ -1049,8 +1064,8 @@ class snipping_tool():
             self.line_color = "#ff08ff"
             self.brush_scale_factor = 10
             self.open_on_save = 1
-            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
-                                              "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}       
+            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "Alt", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "Z", "current_hotkey_1" : 'Alt+Z',
+                                              "hotkey_2_modifyer_1" : "Alt", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "C", "current_hotkey_2" : 'Alt+C'}
             print("no settings file found")
         except Exception as e:
             self.scale_percent = 0.35   # The size of the zoom box based on the width/height of the clip
@@ -1069,8 +1084,8 @@ class snipping_tool():
             self.line_color = "#ff08ff"
             self.brush_scale_factor = 10
             self.open_on_save = 1
-            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "WindowsKey", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "z", "current_hotkey_1" : '<cmd>+z', "id_1" : 0,
-                                              "hotkey_2_modifyer_1" : "WindowsKey", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "c", "current_hotkey_2" : '<cmd>+c', "id_2" : 1}
+            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "Alt", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "Z", "current_hotkey_1" : 'Alt+Z',
+                                              "hotkey_2_modifyer_1" : "Alt", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "C", "current_hotkey_2" : 'Alt+C'}
             print("there was an error importing the settings \n{}".format(e))
         finally:
             try:settings_file.close()
@@ -1092,11 +1107,12 @@ class snipping_tool():
         # <cmd> == WindowsKey, <alt> == AltKey, <ctrl> == CtrlKey, <shift> = shift
         #self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, self.hotkey_visual_in_settings["current_hotkey_1"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_1_key"], self.on_activate_i) #keyboard.GlobalHotKeys({ '<cmd>+z': self.on_activate_i})
         #self.gif_hotkey =   Global_hotkeys.create_hotkey(self.hwnd, 1, self.hotkey_visual_in_settings["current_hotkey_2"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_2_key"], self.on_activate_gif) #keyboard.GlobalHotKeys({ '<cmd>+c': self.on_activate_gif})
-
-        self.clip_hotkey = GlobalHotKeys.register(GlobalHotKeys.VK_Z, GlobalHotKeys.MOD_ALT, self.on_activate_i)
+        
+        self.clip_hotkey = GlobalHotKeys.register(90, GlobalHotKeys.MOD_ALT, self.on_activate_i)
         self.gif_hotkey =  GlobalHotKeys.register(GlobalHotKeys.VK_C, GlobalHotKeys.MOD_ALT, self.on_activate_gif)
 
-        threading.Thread(target = GlobalHotKeys.listen).start()
+        self.hotkey_thread = threading.Thread(target = GlobalHotKeys.listen)
+        self.hotkey_thread.start()
     #*****************                *************. 
     #***************** Call Functions *************. 
     #*****************                *************. 
