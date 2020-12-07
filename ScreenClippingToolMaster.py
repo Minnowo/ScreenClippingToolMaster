@@ -11,7 +11,7 @@ from PIL import ImageGrab, Image, ImageTk
 from threading import Thread, Timer
 #from screeninfo import get_monitors
 from ctypes import windll, Structure, c_ulong, byref
-from desktopmagic.screengrab_win32 import getDisplayRects, saveScreenToBmp, saveRectToBmp, getScreenAsImage, getRectAsImage, getDisplaysAsImages
+#from desktopmagic.screengrab_win32 import getDisplayRects, saveScreenToBmp, saveRectToBmp, getScreenAsImage, getRectAsImage, getDisplaysAsImages
 from pynput import keyboard
 import clr
 
@@ -25,6 +25,7 @@ clr.AddReference(filename)
 from screeninfo_c import ScreenInfo
 get_monitors = ScreenInfo.GetMonitors
 monitor_from_point = ScreenInfo.MonitorFromPoint
+get_rect_as_image = ScreenInfo.GetRectAsImage
 
 
 
@@ -380,12 +381,13 @@ class Create_gif:
     def record(self):
         self.record_on = True
 
-        while self.record_on == True:
-            rct = (self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3])#rct = (self.gif_bounds[0] + x1, self.gif_bounds[1] + y1, self.gif_bounds[2] + x2, self.gif_bounds[3] + y2)
-            img = getRectAsImage(rct) #x1, y1, x2, y2 = self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[0]
+        while self.record_on == True:      
+            img = Image.open(get_rect_as_image(self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3], os.path.join(os.getcwd(), f'screenshots\\{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")}.png'))) # take image
+            #rct = (self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3])#rct = (self.gif_bounds[0] + x1, self.gif_bounds[1] + y1, self.gif_bounds[2] + x2, self.gif_bounds[3] + y2)
+            #img = getRectAsImage(rct) #x1, y1, x2, y2 = self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[0]
             self.gif.append(img)
             del img
-            print('image taken at', rct)
+            print('image taken at', self.gif_bounds[0], self.gif_bounds[1], self.gif_bounds[2], self.gif_bounds[3])
             time.sleep(0.05)
         gc.collect()
 
@@ -805,7 +807,7 @@ class Settings:
             try:
                 with PIL.Image.open(img) as image:
                     print(image)
-                    self.snippingclass.show_clip_window(None, True, image)
+                    self.snippingclass.show_clip_window(None, True, image.copy())
                 image.close()
             except Exception as e:
                 messagebox.showerror(title="", message=f"{e}", parent=root)
@@ -1159,7 +1161,8 @@ class snipping_tool():
         x1, y1, x2, y2 = int(x1 + monitor.X), int(y1 + monitor.Y), int(x2 + monitor.X), int(y2 + monitor.Y)
 
         try:
-            img = getRectAsImage((x1, y1, x2, y2)) # take image
+            time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")
+            img = Image.open(get_rect_as_image(x1, y1, x2, y2, os.path.join(os.getcwd(), f'screenshots\\{time}.png'))) # take image
             dispImg = ImageTk.PhotoImage(img)
         except Exception as e: 
             print(e)
@@ -1234,8 +1237,10 @@ class snipping_tool():
             else:                                   # If there are no clips take screenshots 
                 for i in monitors:  
                     bounds = i.bounds
-                    img = getRectAsImage((bounds.X, bounds.Y, bounds.Width + bounds.X, bounds.Height + bounds.Y))
-                    date_time = str(datetime.datetime.now()) + "delay_clip"         # Name the clip using the date time and mark it as a delay_clip
+                    time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")
+                    img = Image.open(get_rect_as_image(bounds.X, bounds.Y, bounds.Width + bounds.X, bounds.Height + bounds.Y, os.path.join(os.getcwd(), f'screenshots\\{time}delay_clip.png'))) # take image
+                    #img = getRectAsImage((bounds.X, bounds.Y, bounds.Width + bounds.X, bounds.Height + bounds.Y)) #Image.open(get_rect_as_image(x1, y1, x2, y2, os.path.join(os.getcwd(), f'screenshots\\{time}.png'))) # take image
+                    date_time = str(time) + "delay_clip"         # Name the clip using the date time and mark it as a delay_clip
                     self.save_img_data[date_time] = img
                     del img
                     print("image saved")
@@ -1244,7 +1249,8 @@ class snipping_tool():
                 bounds = i.bounds
                 self.lines_list[x] = {"dims" : [bounds.Width, bounds.Height, i.name], "lines" : None}
                 if self.snapshot:
-                    img = ImageTk.PhotoImage(getRectAsImage((bounds.X, bounds.Y, bounds.Width + bounds.X, bounds.Height + bounds.Y)))
+                    time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")
+                    img = ImageTk.PhotoImage(Image.open(get_rect_as_image(bounds.X, bounds.Y, bounds.Width + bounds.X, bounds.Height + bounds.Y, os.path.join(os.getcwd(), f'screenshots\\{time}.png'))))
                     self.make_clip_win(i, self.snapshot, img)
                     del img
                 else:
