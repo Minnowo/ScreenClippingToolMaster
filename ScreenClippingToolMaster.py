@@ -628,7 +628,7 @@ class Settings:
                     self.snippingclass.gif_hotkey =  GlobalHotKeys.register(VKS[hotkey2_formated[-1]], sum(hotkey2_formated[:-1]), self.snippingclass.on_activate_gif)
                 except:
                      messagebox.askquestion(title = "", message = "There was an error creating hotkeys you should restart the program", parent = root)
-                self.snippingclass.hotkey_thread = threading.Thread(target = GlobalHotKeys.listen)
+                self.snippingclass.hotkey_thread = threading.Thread(target = GlobalHotKeys.listen, daemon=True)
                 self.snippingclass.hotkey_thread.start()
                 print(f"Updating hotkeys")
 
@@ -1103,15 +1103,26 @@ class snipping_tool():
         root.withdraw()
         root.attributes('-alpha', .0)
         root.attributes('-topmost', 'true')
+
+        if not os.path.exists(os.path.join(os.getcwd(), 'screenshots')):
+            os.mkdir(os.path.join(os.getcwd(), 'screenshots'))
+        else:
+            messagebox.showinfo(title = "", message = "A reminder that you may want to clear the screenshots folder once in a while", parent = root)
         
         # <cmd> == WindowsKey, <alt> == AltKey, <ctrl> == CtrlKey, <shift> = shift
         #self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, self.hotkey_visual_in_settings["current_hotkey_1"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_1_key"], self.on_activate_i) #keyboard.GlobalHotKeys({ '<cmd>+z': self.on_activate_i})
         #self.gif_hotkey =   Global_hotkeys.create_hotkey(self.hwnd, 1, self.hotkey_visual_in_settings["current_hotkey_2"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_2_key"], self.on_activate_gif) #keyboard.GlobalHotKeys({ '<cmd>+c': self.on_activate_gif})
-        
-        self.clip_hotkey = GlobalHotKeys.register(90, GlobalHotKeys.MOD_ALT, self.on_activate_i)
-        self.gif_hotkey =  GlobalHotKeys.register(GlobalHotKeys.VK_C, GlobalHotKeys.MOD_ALT, self.on_activate_gif)
+        try:
+            self.clip_hotkey = GlobalHotKeys.register(90, GlobalHotKeys.MOD_ALT, self.on_activate_i)
+        except:
+            messagebox.showerror(title = "", message = "There was an error creating the main clipping hotkey, it may already be in use by another program, try changing it in the settings or stopping the other prgram", parent = root)
 
-        self.hotkey_thread = threading.Thread(target = GlobalHotKeys.listen)
+        try:
+            self.gif_hotkey =  GlobalHotKeys.register(GlobalHotKeys.VK_C, GlobalHotKeys.MOD_ALT, self.on_activate_gif)
+        except:
+            messagebox.showerror(title = "", message = "There was an error creating the main gif hotkey, it may already be in use by another program, try changing it in the settings or stopping the other prgram", parent = root)
+
+        self.hotkey_thread = threading.Thread(target = GlobalHotKeys.listen, daemon=True)
         self.hotkey_thread.start()
     #*****************                *************. 
     #***************** Call Functions *************. 
@@ -1315,15 +1326,17 @@ class snipping_tool():
 
     #***************** Create the drag box *************. 
     def OnLeftClick(self, event):
-        self.start_x = event.widget.canvasx(event.x)
-        self.start_y = event.widget.canvasy(event.y)
-        self.monitorid = windll.user32.MonitorFromPoint(int(root.winfo_pointerx()), int(root.winfo_pointery()), 2)
-        self.monitor =  monitor_from_point(int(root.winfo_pointerx()), int(root.winfo_pointery()))
+        if not self.drag_box:
+            self.start_x = event.widget.canvasx(event.x)
+            self.start_y = event.widget.canvasy(event.y)
+            self.monitorid = windll.user32.MonitorFromPoint(int(root.winfo_pointerx()), int(root.winfo_pointery()), 2)
+            self.monitor =  monitor_from_point(int(root.winfo_pointerx()), int(root.winfo_pointery()))
 
-        if self.snapshot or self.delayed_clip: 
-            self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1)
-        else: 
-            self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1, fill="blue")
+            if self.snapshot or self.delayed_clip: 
+                self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1)
+            else: 
+                self.drag_box = event.widget.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1, fill="blue")
+        else:print("already clicked")
 
 
     #***************** Expand the drag box *************. 
@@ -1914,11 +1927,12 @@ class tray():
     #***************** Kill tkinter mainloop and remove all hotkey threads *************. 
     def kill_program(self):
         try:
-            Global_hotkeys.remove_hotkey(self.clip_app.hwnd, self.clip_app.clip_hotkey[3], self.clip_app.clip_hotkey[0])
-            Global_hotkeys.remove_hotkey(self.clip_app.hwnd, self.clip_app.gif_hotkey[3], self.clip_app.gif_hotkey[0])
+            GlobalHotKeys.unregisterHotkKey()        
+            kb.send(self.clip_app.hotkey_visual_in_settings["current_hotkey_1"]) # this is the dumbest thing ever but it works and i couldn't think of another way 
         except Exception as e:print(e)
 
         root.destroy()
+        os.kill(os.getpid(), signal.SIGTERM)
         raise SystemExit
 
     #***************** On tray Quit button, destroy tray icon and kill process *************. 
