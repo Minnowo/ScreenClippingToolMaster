@@ -15,6 +15,7 @@ from ctypes import windll, Structure, c_ulong, byref
 #from desktopmagic.screengrab_win32 import getDisplayRects, saveScreenToBmp, saveRectToBmp, getScreenAsImage, getRectAsImage, getDisplaysAsImages
 #from pynput import keyboard
 import clr
+from shutil import rmtree
 from GlobalHotKeys_e import GlobalHotKeys
 
 #***************** import dll *************. 
@@ -449,6 +450,8 @@ class Settings:
         self.clip_hotkey = SnippingClass.clip_hotkey
         self.gif_hotkey = SnippingClass.gif_hotkey
 
+        self.save_file_name = "settings.json"
+
         self.settings_window_root = Toplevel(root)
         self.settings_window_root.title("Settings")
         self.settings_window_root.attributes("-topmost", True)
@@ -592,60 +595,30 @@ class Settings:
             self.multiplyer = float(self.zoom_multiplyer_Combobox.get())
             self.border_thiccness = int(self.border_thiccness_combobox.get())
 
-            correct_modifyers_for_hotkey = {"Windows" : win32con.MOD_WIN, "Alt" : win32con.MOD_ALT, "Ctrl" : win32con.MOD_CONTROL, "Shift" : win32con.MOD_SHIFT}
-
-            VKS = {**{str(item)[3:] : win32con.__dict__[str(item)] for item in win32con.__dict__ if item[:3] == 'VK_'}, **{chr(key_code) : key_code for key_code in (list (range(ord('A'), ord('Z') + 1)) + list(range(ord('0'), ord('9') + 1)) )}, **GlobalHotKeys.PUNCTUATION_CHARACTERS}
-
+            
             #for key, value in VKS.items():
             #    print(key, value)
 
             hotkey1 = list( dict.fromkeys([i for i in [self.hotkey_1_modifyer_1.get(), self.hotkey_1_modifyer_2.get(), self.hotkey_1_modifyer_3.get(), self.hotkey_1_key.get()] if i != "None"]))
             hotkey2 = list( dict.fromkeys([i for i in [self.hotkey_2_modifyer_1.get(), self.hotkey_2_modifyer_2.get(), self.hotkey_2_modifyer_3.get(), self.hotkey_2_key.get()] if i != "None"]))
 
-            if self.hotkey_visual_in_settings["current_hotkey_1"] != "+".join(hotkey1) or self.hotkey_visual_in_settings["current_hotkey_2"] != "+".join(hotkey2):
-
-                GlobalHotKeys.unregisterHotkKey()        
-                kb.send(self.hotkey_visual_in_settings["current_hotkey_1"]) # this is the dumbest thing ever but it works and i couldn't think of another way 
-                self.snippingclass.hotkey_thread.join()   
-
-                self.hotkey_visual_in_settings["current_hotkey_1"] = "+".join(hotkey1)
-                self.hotkey_visual_in_settings["current_hotkey_2"] = "+".join(hotkey2)
-
-                hotkey1_formated = [correct_modifyers_for_hotkey[i] for i in hotkey1 if i in ["Windows", "Alt", "Ctrl", "Shift"]]
-                hotkey2_formated = [correct_modifyers_for_hotkey[i] for i in hotkey2 if i in ["Windows", "Alt", "Ctrl", "Shift"]]
-
-                hotkey1_formated.append(hotkey1[-1])
-                hotkey2_formated.append(hotkey2[-1])
-
-                print(VKS[hotkey1_formated[-1]], sum(hotkey1_formated[:-1]))
-                #print(hotkey2_formated, VKS[hotkey2_formated[-1]]) 
-
-                #GlobalHotKeys.unregisterHotkKey()        
-                #kb.send(self.hotkey_visual_in_settings["current_hotkey_1"])
-                #self.snippingclass.hotkey_thread.join()      
-                try:
-                    self.snippingclass.clip_hotkey = GlobalHotKeys.register(VKS[hotkey1_formated[-1]], sum(hotkey1_formated[:-1]), self.snippingclass.on_activate_i)
-                    self.snippingclass.gif_hotkey =  GlobalHotKeys.register(VKS[hotkey2_formated[-1]], sum(hotkey2_formated[:-1]), self.snippingclass.on_activate_gif)
-                except:
-                     messagebox.askquestion(title = "", message = "There was an error creating hotkeys you should restart the program", parent = root)
-                self.snippingclass.hotkey_thread = threading.Thread(target = GlobalHotKeys.listen, daemon=True)
-                self.snippingclass.hotkey_thread.start()
-                print(f"Updating hotkeys")
-
-
-            if 1==2:
-                del hotkey2_formated[-1]
-                try:
-                    Global_hotkeys.remove_hotkey(self.snippingclass.hwnd, self.snippingclass.gif_hotkey[3], self.snippingclass.gif_hotkey[0]) 
-                    self.snippingclass.gif_hotkey =  Global_hotkeys.create_hotkey(self.snippingclass.hwnd, 1, hotkey2_formated, hotkey2[-1].lower(), self.snippingclass.on_activate_gif)
-                    print(f"New hotkey set for Gif mode, {final_hotkey2}")
-                except Exception as e:print(e)
-
-            
-
             self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : self.hotkey_visual_in_settings["current_hotkey_1"],
                                               "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : self.hotkey_visual_in_settings["current_hotkey_2"]}       
             self.snippingclass.save_settings(self)
+
+            if self.hotkey_visual_in_settings["current_hotkey_1"] != "+".join(hotkey1) or self.hotkey_visual_in_settings["current_hotkey_2"] != "+".join(hotkey2):
+                self.save_file_name = "settings.tmp.json"
+                self.create_save_file()
+                self.save_file_name = "settings.json"
+                if messagebox.askquestion(title = "", message = "The program requires a restart to change the hotkeys would you like to restart now?", parent = root) == "yes":
+                    self.snippingclass.tray.restart_program(self.snippingclass.tray.sysTrayIcon)
+                else:
+                    messagebox.showinfo(title = "", message = "The settings will take place when the tool next opens", parent = root)
+                
+
+            
+
+            
 
 
 
@@ -797,7 +770,7 @@ class Settings:
 
 
     def create_save_file(self, *args):
-        with open("settings.json", "w") as save_file:
+        with open(self.save_file_name, "w") as save_file:
             settings = {"scale_percent"  : self.scale_percent,  "zoom_multiplyer" : self.multiplyer,   "snapshot_mode"      : self.snapshot,
                         "delayed_mode"   : self.delayed_clip,   "multi_clip"      : self.multi_clip,   "auto_copy_image"    : self.auto_copy_image,
                         "auto_hide_clip" : self.auto_hide_clip, "cursor_lines"    : self.cursor_lines, "default_alpha"      : self.default_alpha,
@@ -1024,8 +997,18 @@ class snipping_tool():
         self.zoom_image = None      # Image displayed when you zoom in 
         self.img = None             # Temporary image that is shown when you zoom in
 
+        correct_modifyers_for_hotkey = {"Windows" : win32con.MOD_WIN, "Alt" : win32con.MOD_ALT, "Ctrl" : win32con.MOD_CONTROL, "Shift" : win32con.MOD_SHIFT, "None" : 0}
+
+        VKS = {**{str(item)[3:] : win32con.__dict__[str(item)] for item in win32con.__dict__ if item[:3] == 'VK_'}, **{chr(key_code) : key_code for key_code in (list (range(ord('A'), ord('Z') + 1)) + list(range(ord('0'), ord('9') + 1)) )}, **GlobalHotKeys.PUNCTUATION_CHARACTERS}
+
+
         try:           
-            with open("settings.json", "r") as settings_file:
+            if not os.path.exists(os.path.join(os.getcwd(), 'settings.tmp.json')):
+                file = "settings.json"
+            else:
+                file = "settings.tmp.json"
+
+            with open(file, "r") as settings_file:
                 settings = json.load(settings_file)
 
                 self.scale_percent = settings["scale_percent"]
@@ -1045,7 +1028,7 @@ class snipping_tool():
                 self.line_color = settings["line_color"]
                 self.brush_scale_factor = settings["brush_scale_factor"]
                 self.open_on_save = settings["open_on_save"]
-                print("settings imported successfully")
+                print(f"settings imported successfully from {file}")
                     
         except FileNotFoundError:
             self.scale_percent = 0.35   # The size of the zoom box based on the width/height of the clip
@@ -1107,23 +1090,26 @@ class snipping_tool():
         if not os.path.exists(os.path.join(os.getcwd(), 'screenshots')):
             os.mkdir(os.path.join(os.getcwd(), 'screenshots'))
         else:
-            messagebox.showinfo(title = "", message = "A reminder that you may want to clear the screenshots folder once in a while", parent = root)
+            if messagebox.askquestion(title = "", message = "Would you like to clear the screenshot folder", parent = root) == "yes":
+                try:
+                    rmtree("screenshots")                   
+                    os.mkdir(os.path.join(os.getcwd(), 'screenshots'))
+                except:pass
+
+        if os.path.exists(os.path.join(os.getcwd(), 'settings.tmp.json')):os.remove("settings.tmp.json")
         
         # <cmd> == WindowsKey, <alt> == AltKey, <ctrl> == CtrlKey, <shift> = shift
         #self.clip_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 0, self.hotkey_visual_in_settings["current_hotkey_1"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_1_key"], self.on_activate_i) #keyboard.GlobalHotKeys({ '<cmd>+z': self.on_activate_i})
         #self.gif_hotkey =   Global_hotkeys.create_hotkey(self.hwnd, 1, self.hotkey_visual_in_settings["current_hotkey_2"].split("+")[:-1], self.hotkey_visual_in_settings["hotkey_2_key"], self.on_activate_gif) #keyboard.GlobalHotKeys({ '<cmd>+c': self.on_activate_gif})
-        try:
-            self.clip_hotkey = GlobalHotKeys.register(90, GlobalHotKeys.MOD_ALT, self.on_activate_i)
-        except:
-            messagebox.showerror(title = "", message = "There was an error creating the main clipping hotkey, it may already be in use by another program, try changing it in the settings or stopping the other prgram", parent = root)
-
-        try:
-            self.gif_hotkey =  GlobalHotKeys.register(GlobalHotKeys.VK_C, GlobalHotKeys.MOD_ALT, self.on_activate_gif)
-        except:
-            messagebox.showerror(title = "", message = "There was an error creating the main gif hotkey, it may already be in use by another program, try changing it in the settings or stopping the other prgram", parent = root)
-
+       
+        self.clip_hotkey = GlobalHotKeys.register(VKS[self.hotkey_visual_in_settings["hotkey_1_key"]], sum([correct_modifyers_for_hotkey[key] for key in [self.hotkey_visual_in_settings["hotkey_1_modifyer_1"], self.hotkey_visual_in_settings["hotkey_1_modifyer_2"], self.hotkey_visual_in_settings["hotkey_1_modifyer_3"]]]), self.on_activate_i)
+        
+        self.gif_hotkey =  GlobalHotKeys.register(VKS[self.hotkey_visual_in_settings["hotkey_2_key"]], sum([correct_modifyers_for_hotkey[key] for key in [self.hotkey_visual_in_settings["hotkey_2_modifyer_1"], self.hotkey_visual_in_settings["hotkey_2_modifyer_2"], self.hotkey_visual_in_settings["hotkey_2_modifyer_3"]]]), self.on_activate_gif)
+        
         self.hotkey_thread = threading.Thread(target = GlobalHotKeys.listen, daemon=True)
         self.hotkey_thread.start()
+
+        
     #*****************                *************. 
     #***************** Call Functions *************. 
     #*****************                *************. 
@@ -1354,7 +1340,7 @@ class snipping_tool():
 
         event.widget.delete(self.drag_box)
         self.drag_box = None
-        root.after(70 , lambda : self.show_clip_window(event)) # Call clip window 
+        root.after(0 , lambda : self.show_clip_window(event)) # Call clip window 
 
 
 
@@ -1928,7 +1914,7 @@ class tray():
     def kill_program(self):
         try:
             GlobalHotKeys.unregisterHotkKey()        
-            kb.send(self.clip_app.hotkey_visual_in_settings["current_hotkey_1"]) # this is the dumbest thing ever but it works and i couldn't think of another way 
+            #kb.send(self.clip_app.hotkey_visual_in_settings["current_hotkey_1"]) # this is the dumbest thing ever but it works and i couldn't think of another way 
         except Exception as e:print(e)
 
         root.destroy()

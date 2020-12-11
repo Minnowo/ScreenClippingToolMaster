@@ -1,7 +1,7 @@
 import ctypes
 import ctypes.wintypes
 import win32con
- 
+from tkinter import messagebox
  
 class GlobalHotKeys(object):
     """
@@ -66,7 +66,9 @@ class GlobalHotKeys(object):
  
         for index, (vk, modifiers, func) in enumerate(cls.key_mapping):
             if not cls.user32.RegisterHotKey(None, index, modifiers, vk):
-                raise Exception('Unable to register hot key: ' + str(vk) + ' error code is: ' + str(ctypes.windll.kernel32.GetLastError()))
+                messagebox.showerror(title = "", message ='Unable to register hot key: ' + str(vk) + ' error code is: ' + str(ctypes.windll.kernel32.GetLastError()))
+                #cls.register_hotkey_error += '\nUnable to register hot key: ' + chr(vk) + ' error code is: ' + str(ctypes.windll.kernel32.GetLastError())
+                #raise Exception('Unable to register hot key: ' + str(vk) + ' error code is: ' + str(ctypes.windll.kernel32.GetLastError()))
  
         try:
             msg = ctypes.wintypes.MSG()
