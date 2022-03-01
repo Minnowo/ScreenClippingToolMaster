@@ -206,8 +206,8 @@ class Create_gif:
         self.hide_border_always = IntVar(value = 0)
         self.hide_border_never  = IntVar(value = 0)
         self.center_mouse_always = IntVar(value = 0)
-        self.center_mouse_never = IntVar(value = 0)
-        self.center_mouse_while_off = IntVar(value = 1)
+        self.center_mouse_never = IntVar(value = 1)
+        self.center_mouse_while_off = IntVar(value = 0)
         self.gif_bounds = [i for i in [monitor.X + x1, monitor.Y + y1, monitor.X + x2, monitor.Y + y2]]
         print(self.gif_bounds)
 
@@ -602,11 +602,12 @@ class Settings:
             hotkey1 = list( dict.fromkeys([i for i in [self.hotkey_1_modifyer_1.get(), self.hotkey_1_modifyer_2.get(), self.hotkey_1_modifyer_3.get(), self.hotkey_1_key.get()] if i != "None"]))
             hotkey2 = list( dict.fromkeys([i for i in [self.hotkey_2_modifyer_1.get(), self.hotkey_2_modifyer_2.get(), self.hotkey_2_modifyer_3.get(), self.hotkey_2_key.get()] if i != "None"]))
 
-            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : self.hotkey_visual_in_settings["current_hotkey_1"],
-                                              "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : self.hotkey_visual_in_settings["current_hotkey_2"]}       
-            self.snippingclass.save_settings(self)
+            
 
             if self.hotkey_visual_in_settings["current_hotkey_1"] != "+".join(hotkey1) or self.hotkey_visual_in_settings["current_hotkey_2"] != "+".join(hotkey2):
+                self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : "+".join(hotkey1),
+                                                  "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : "+".join(hotkey2)}       
+            
                 self.save_file_name = "settings.tmp.json"
                 self.create_save_file()
                 self.save_file_name = "settings.json"
@@ -614,9 +615,12 @@ class Settings:
                     self.snippingclass.tray.restart_program(self.snippingclass.tray.sysTrayIcon)
                 else:
                     messagebox.showinfo(title = "", message = "The settings will take place when the tool next opens", parent = root)
-                
-
+            else:
+                self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : self.hotkey_1_modifyer_1.get(), "hotkey_1_modifyer_2" : self.hotkey_1_modifyer_2.get(), "hotkey_1_modifyer_3" : self.hotkey_1_modifyer_3.get(), "hotkey_1_key" : self.hotkey_1_key.get(), "current_hotkey_1" : "+".join(hotkey1),
+                                              "hotkey_2_modifyer_1" : self.hotkey_2_modifyer_1.get(), "hotkey_2_modifyer_2" : self.hotkey_2_modifyer_2.get(), "hotkey_2_modifyer_3" : self.hotkey_2_modifyer_3.get(), "hotkey_2_key" : self.hotkey_2_key.get(), "current_hotkey_2" : "+".join(hotkey2)}       
             
+
+            self.snippingclass.save_settings(self)
 
             
 
@@ -704,30 +708,21 @@ class Settings:
         self.open_on_save = 1
 
 
-        if self.hotkey_visual_in_settings["current_hotkey_1"] != '<cmd>+z':
-            try:
-                Global_hotkeys.remove_hotkey(self.hwnd, self.clip_hotkey[3], self.clip_hotkey[0])
-            except Exception as e:print(e)
-
-            try:
-                self.clip_hotkey = Global_hotkeys.create_hotkey(self.hwnd, 0, ["<cmd>"], "z", self.on_activate_i) 
-                print("Hotkey 1 has been reset")
-            except Exception as e:print(e)
-
-
-        if self.hotkey_visual_in_settings["current_hotkey_2"] != '<cmd>+c':
-            try:
-                Global_hotkeys.remove_hotkey(self.hwnd, self.gif_hotkey[3], self.gif_hotkey[0]) 
-            except Exception as e:print(e)
-
-            try:
-                self.gif_hotkey =  Global_hotkeys.create_hotkey(self.hwnd, 1, ["<cmd>"], "c", self.on_activate_gif) 
-                print("Hotkey 2 has been reset")
-            except Exception as e:print(e)
-
-
-        self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "Alt", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "Z", "current_hotkey_1" : 'Alt+Z',
+        if self.hotkey_visual_in_settings["current_hotkey_1"] != "Alt+Z" or self.hotkey_visual_in_settings["current_hotkey_2"] != "Alt+C":
+                self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "Alt", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "Z", "current_hotkey_1" : 'Alt+Z',
                                               "hotkey_2_modifyer_1" : "Alt", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "C", "current_hotkey_2" : 'Alt+C'}
+                self.save_file_name = "settings.tmp.json"
+                self.create_save_file()
+                self.save_file_name = "settings.json"
+                if messagebox.askquestion(title = "", message = "The program requires a restart to change the hotkeys would you like to restart now?", parent = root) == "yes":
+                    self.snippingclass.tray.restart_program(self.snippingclass.tray.sysTrayIcon)
+                else:
+                    messagebox.showinfo(title = "", message = "The settings will take place when the tool next opens", parent = root)
+        else:
+            self.hotkey_visual_in_settings = {"hotkey_1_modifyer_1" : "Alt", "hotkey_1_modifyer_2" : "None", "hotkey_1_modifyer_3" : "None", "hotkey_1_key" : "Z", "current_hotkey_1" : 'Alt+Z',
+                                              "hotkey_2_modifyer_1" : "Alt", "hotkey_2_modifyer_2" : "None", "hotkey_2_modifyer_3" : "None", "hotkey_2_key" : "C", "current_hotkey_2" : 'Alt+C'}
+
+        
         self.snippingclass.save_settings(self)
         self.snippingclass.settings_window()
 
@@ -1340,7 +1335,7 @@ class snipping_tool():
 
         event.widget.delete(self.drag_box)
         self.drag_box = None
-        root.after(0 , lambda : self.show_clip_window(event)) # Call clip window 
+        root.after(70 , lambda : self.show_clip_window(event)) # Call clip window 
 
 
 
